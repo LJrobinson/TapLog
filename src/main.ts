@@ -1,6 +1,7 @@
 import { Notice, Plugin, TFile, type MarkdownPostProcessorContext } from "obsidian";
 import { appendCsvRow, buildOutputPath, getMergedButtonValues, valueToCsvText } from "./csv";
 import { createMonthlyRollupSummary, createMonthlySummaryForActiveTracker } from "./summaries";
+import { createTrackerIndexNote } from "./trackerIndex";
 import {
 	BASIC_TRACKER_TEMPLATE,
 	CANNABIS_TRACKER_TEMPLATE,
@@ -53,6 +54,16 @@ export default class TapLogPlugin extends Plugin {
 			name: "TapLog: Create custom tracker template",
 			callback: () => {
 				void createTrackerNote(this.app, CUSTOM_TRACKER_TEMPLATE);
+			}
+		});
+
+		this.addCommand({
+			id: "create-tracker-index",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create tracker index",
+			callback: () => {
+				void createTrackerIndexNote(this.app);
 			}
 		});
 

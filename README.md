@@ -20,6 +20,7 @@ TapLog currently supports:
 10. Active-tracker monthly summaries.
 11. Snack par/restock guidance when `taplog.par_levels` exists.
 12. Current-month rollup summaries across all TapLog CSVs.
+13. A static Markdown tracker index note.
 
 TapLog does not currently include settings UI, a custom wizard, charts, dashboards, sync, or a full inventory system.
 
@@ -29,6 +30,7 @@ TapLog does not currently include settings UI, a custom wizard, charts, dashboar
 - **TapLog: Create cannabis tracker**
 - **TapLog: Create basic tracker template**
 - **TapLog: Create custom tracker template**
+- **TapLog: Create tracker index**
 - **TapLog: Create monthly summary for active tracker**
 - **TapLog: Create monthly rollup summary**
 
@@ -55,11 +57,14 @@ TapLog/Summaries/YYYY-MM/*.md
 Examples:
 
 ```text
+TapLog/TapLog Index.md
 TapLog/Trackers/Snack Tracker.md
 TapLog/Logs/YYYY-MM/snacks.csv
 TapLog/Summaries/YYYY-MM/snacks Summary.md
 TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 ```
+
+Run **TapLog: Create tracker index** to create or open `TapLog/TapLog Index.md`. It is a static Markdown home note with links to the built-in trackers, current vault output paths, a short command reference, and a simple usage flow. It is not a live dashboard.
 
 ## Example tracker note
 
@@ -153,13 +158,14 @@ It includes month, source folder, tracker count, total event count, and one smal
 ## Manual test checklist
 
 1. Run each tracker command: snack, cannabis, basic, and custom.
-2. Confirm each tracker opens and renders buttons in Reading View.
-3. Click one button in each tracker.
-4. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
-5. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
-6. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
-7. Run **TapLog: Create monthly rollup summary**.
-8. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
+2. Run **TapLog: Create tracker index** and confirm `TapLog/TapLog Index.md` opens.
+3. Confirm each tracker opens and renders buttons in Reading View.
+4. Click one button in each tracker.
+5. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
+6. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
+7. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
+8. Run **TapLog: Create monthly rollup summary**.
+9. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
 
 ## Development setup
 
