@@ -126,6 +126,9 @@ export default class TapLogPlugin extends Plugin {
 
 			const noteFile = existingFile ?? await this.app.vault.create(notePath, template.content);
 			const repairedExistingNote = existingFile ? await this.repairInvalidGeneratedTracker(existingFile, template) : false;
+			if (!existingFile || repairedExistingNote) {
+				await this.waitForTrackerMetadata(noteFile, template.taplogId);
+			}
 
 			await this.app.workspace.getLeaf(false).openFile(noteFile);
 
@@ -152,6 +155,45 @@ export default class TapLogPlugin extends Plugin {
 
 		await this.app.vault.modify(file, template.content);
 		return true;
+	}
+
+	private async waitForTrackerMetadata(file: TFile, expectedId: string): Promise<void> {
+		if (this.hasValidTrackerMetadata(file, expectedId)) {
+			return;
+		}
+
+		await new Promise<void>((resolve) => {
+			let settled = false;
+			let timeoutId = 0;
+			const eventRef = this.app.metadataCache.on("changed", (changedFile) => {
+				if (changedFile.path === file.path && this.hasValidTrackerMetadata(file, expectedId)) {
+					finish();
+				}
+			});
+
+			const finish = () => {
+				if (settled) {
+					return;
+				}
+
+				settled = true;
+				window.clearTimeout(timeoutId);
+				this.app.metadataCache.offref(eventRef);
+				resolve();
+			};
+
+			timeoutId = window.setTimeout(finish, 750);
+
+			if (this.hasValidTrackerMetadata(file, expectedId)) {
+				finish();
+			}
+		});
+	}
+
+	private hasValidTrackerMetadata(file: TFile, expectedId: string): boolean {
+		const taplogConfig = getTaplogFromFrontmatter(this.app.metadataCache.getFileCache(file)?.frontmatter);
+
+		return isValidGeneratedTrackerConfig(taplogConfig, expectedId);
 	}
 
 	private async createMonthlySummaryForActiveTracker() {
