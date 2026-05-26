@@ -5,6 +5,7 @@ import {
 	normalizeCustomTrackers,
 	upsertCustomTracker
 } from "./customTracker";
+import { getQuickRibbonTrackerOptions } from "./ribbonActions";
 import { normalizeTrackerOrder } from "./trackerOrder";
 import {
 	BUILT_IN_TRACKER_IDS,
@@ -16,16 +17,23 @@ import {
 export interface TapLogSettings {
 	trackerOrder: string[];
 	customTrackers: CustomTrackerDefinition[];
+	showIndexRibbonAction: boolean;
+	showQuickTrackerRibbonAction: boolean;
+	quickRibbonTrackerId: string;
 }
 
 export interface TapLogSettingsHost extends Plugin {
 	settings: TapLogSettings;
 	saveSettings(): Promise<void>;
+	refreshRibbonActions(): void;
 }
 
 export const DEFAULT_TAPLOG_SETTINGS: TapLogSettings = {
 	trackerOrder: ["snacks", "cannabis", "basic", "custom"],
-	customTrackers: []
+	customTrackers: [],
+	showIndexRibbonAction: true,
+	showQuickTrackerRibbonAction: true,
+	quickRibbonTrackerId: "snacks"
 };
 
 export function normalizeTapLogSettings(rawSettings: unknown): TapLogSettings {
@@ -33,7 +41,10 @@ export function normalizeTapLogSettings(rawSettings: unknown): TapLogSettings {
 		const customTrackers = normalizeCustomTrackers(undefined);
 		return {
 			trackerOrder: normalizeTrackerOrder(DEFAULT_TAPLOG_SETTINGS.trackerOrder, getKnownTrackerIds(customTrackers)),
-			customTrackers
+			customTrackers,
+			showIndexRibbonAction: DEFAULT_TAPLOG_SETTINGS.showIndexRibbonAction,
+			showQuickTrackerRibbonAction: DEFAULT_TAPLOG_SETTINGS.showQuickTrackerRibbonAction,
+			quickRibbonTrackerId: DEFAULT_TAPLOG_SETTINGS.quickRibbonTrackerId
 		};
 	}
 
@@ -42,7 +53,16 @@ export function normalizeTapLogSettings(rawSettings: unknown): TapLogSettings {
 
 	return {
 		trackerOrder: normalizeTrackerOrder(rawTrackerOrder, getKnownTrackerIds(customTrackers)),
-		customTrackers
+		customTrackers,
+		showIndexRibbonAction: typeof rawSettings["showIndexRibbonAction"] === "boolean"
+			? rawSettings["showIndexRibbonAction"]
+			: DEFAULT_TAPLOG_SETTINGS.showIndexRibbonAction,
+		showQuickTrackerRibbonAction: typeof rawSettings["showQuickTrackerRibbonAction"] === "boolean"
+			? rawSettings["showQuickTrackerRibbonAction"]
+			: DEFAULT_TAPLOG_SETTINGS.showQuickTrackerRibbonAction,
+		quickRibbonTrackerId: typeof rawSettings["quickRibbonTrackerId"] === "string" && rawSettings["quickRibbonTrackerId"].trim().length > 0
+			? rawSettings["quickRibbonTrackerId"].trim()
+			: DEFAULT_TAPLOG_SETTINGS.quickRibbonTrackerId
 	};
 }
 
@@ -52,7 +72,10 @@ export function registerCustomTracker(settings: TapLogSettings, tracker: CustomT
 
 	return {
 		trackerOrder,
-		customTrackers
+		customTrackers,
+		showIndexRibbonAction: settings.showIndexRibbonAction,
+		showQuickTrackerRibbonAction: settings.showQuickTrackerRibbonAction,
+		quickRibbonTrackerId: settings.quickRibbonTrackerId
 	};
 }
 
@@ -92,6 +115,7 @@ export class TapLogSettingTab extends PluginSettingTab {
 		}
 
 		this.renderSimpleCustomTrackerSection(containerEl);
+		this.renderRibbonActionsSection(containerEl);
 
 		new Setting(containerEl)
 			.setName("Tracker order")
@@ -220,6 +244,50 @@ export class TapLogSettingTab extends PluginSettingTab {
 			});
 	}
 
+	private renderRibbonActionsSection(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName("Ribbon actions")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Show index ribbon action")
+			.setDesc("Adds a ribbon shortcut that opens or creates the index.")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showIndexRibbonAction)
+					.onChange((value) => {
+						void this.updateRibbonSetting("showIndexRibbonAction", value);
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Show quick tracker ribbon action")
+			.setDesc("Adds a ribbon shortcut for one tracker.")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showQuickTrackerRibbonAction)
+					.onChange((value) => {
+						void this.updateRibbonSetting("showQuickTrackerRibbonAction", value);
+					});
+			});
+
+		const quickTrackerOptions = Object.fromEntries(
+			getQuickRibbonTrackerOptions(this.plugin.settings.customTrackers).map((option) => [option.id, option.name])
+		);
+
+		new Setting(containerEl)
+			.setName("Quick tracker")
+			.setDesc("Choose the tracker opened by the quick tracker ribbon shortcut.")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOptions(quickTrackerOptions)
+					.setValue(this.plugin.settings.quickRibbonTrackerId)
+					.onChange((value) => {
+						void this.updateRibbonSetting("quickRibbonTrackerId", value);
+					});
+			});
+	}
+
 	private async createSimpleCustomTracker(name: string, id: string, buttonLabels: string) {
 		const result = buildCustomTrackerTemplate({
 			name,
@@ -260,6 +328,16 @@ export class TapLogSettingTab extends PluginSettingTab {
 		}
 
 		return undefined;
+	}
+
+	private async updateRibbonSetting(setting: "showIndexRibbonAction" | "showQuickTrackerRibbonAction", value: boolean): Promise<void>;
+	private async updateRibbonSetting(setting: "quickRibbonTrackerId", value: string): Promise<void>;
+	private async updateRibbonSetting(setting: keyof TapLogSettings, value: boolean | string): Promise<void> {
+		this.plugin.settings = {
+			...this.plugin.settings,
+			[setting]: value
+		};
+		await this.plugin.saveSettings();
 	}
 }
 

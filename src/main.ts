@@ -1,5 +1,6 @@
 import { Notice, Plugin, TFile, type MarkdownPostProcessorContext } from "obsidian";
 import { appendCsvRow, buildOutputPath, getMergedButtonValues, valueToCsvText } from "./csv";
+import { resolveQuickRibbonTrackerTarget } from "./ribbonActions";
 import { TapLogSettingTab, normalizeTapLogSettings, type TapLogSettings } from "./settings";
 import { createMonthlyRollupSummary, createMonthlySummaryForActiveTracker } from "./summaries";
 import { createTrackerIndexNote } from "./trackerIndex";
@@ -15,6 +16,7 @@ import { getTaplogFromFrontmatter, validateTaplogConfig, type TaplogButton, type
 
 export default class TapLogPlugin extends Plugin {
 	settings: TapLogSettings = normalizeTapLogSettings(undefined);
+	private ribbonIconEls: HTMLElement[] = [];
 
 	async onload() {
 		await this.loadSettings();
@@ -103,9 +105,12 @@ export default class TapLogPlugin extends Plugin {
 				void createMonthlyRollupSummary(this.app, this.settings.trackerOrder, this.settings.customTrackers);
 			}
 		});
+
+		this.refreshRibbonActions();
 	}
 
 	onunload() {
+		this.clearRibbonActions();
 	}
 
 	async loadSettings() {
@@ -115,6 +120,49 @@ export default class TapLogPlugin extends Plugin {
 	async saveSettings() {
 		this.settings = normalizeTapLogSettings(this.settings);
 		await this.saveData(this.settings);
+		this.refreshRibbonActions();
+	}
+
+	refreshRibbonActions() {
+		this.clearRibbonActions();
+
+		if (this.settings.showIndexRibbonAction) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			this.ribbonIconEls.push(this.addRibbonIcon("list", "TapLog: Open index", () => {
+				void this.openTrackerIndex();
+			}));
+		}
+
+		if (this.settings.showQuickTrackerRibbonAction) {
+			const quickTracker = resolveQuickRibbonTrackerTarget(this.settings.quickRibbonTrackerId, this.settings.customTrackers);
+			const trackerName = quickTracker.ok ? quickTracker.name.toLowerCase() : "tracker";
+			this.ribbonIconEls.push(this.addRibbonIcon("circle-plus", `TapLog: Open ${trackerName}`, () => {
+				void this.openQuickRibbonTracker();
+			}));
+		}
+	}
+
+	private clearRibbonActions() {
+		for (const ribbonIconEl of this.ribbonIconEls) {
+			ribbonIconEl.remove();
+		}
+
+		this.ribbonIconEls = [];
+	}
+
+	private async openTrackerIndex() {
+		await createTrackerIndexNote(this.app, this.settings.trackerOrder, this.settings.customTrackers);
+	}
+
+	private async openQuickRibbonTracker() {
+		const target = resolveQuickRibbonTrackerTarget(this.settings.quickRibbonTrackerId, this.settings.customTrackers);
+		if (!target.ok) {
+			new Notice(`TapLog could not find quick tracker "${target.id}". Opening the index instead.`);
+			await this.openTrackerIndex();
+			return;
+		}
+
+		await createTrackerNote(this.app, target.template);
 	}
 
 	private renderTaplogBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {

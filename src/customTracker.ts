@@ -4,6 +4,7 @@ export interface CustomTrackerDefinition {
 	id: string;
 	name: string;
 	path: string;
+	buttonLabels?: string[];
 }
 
 export interface CustomTrackerInput {
@@ -53,7 +54,8 @@ export function buildCustomTrackerTemplate(input: CustomTrackerInput): CustomTra
 	const tracker = {
 		id,
 		name,
-		path
+		path,
+		buttonLabels
 	};
 
 	return {
@@ -111,9 +113,13 @@ export function normalizeCustomTrackers(value: unknown): CustomTrackerDefinition
 		const rawId = rawTracker["id"];
 		const rawName = rawTracker["name"];
 		const rawPath = rawTracker["path"];
+		const rawButtonLabels = rawTracker["buttonLabels"];
 		const id = typeof rawId === "string" ? normalizeTrackerId(rawId) : "";
 		const name = typeof rawName === "string" ? normalizeTrackerName(rawName) : "";
 		const path = typeof rawPath === "string" && rawPath.trim().length > 0 ? rawPath.trim().replace(/\\/g, "/") : buildCustomTrackerPath(name);
+		const buttonLabels = Array.isArray(rawButtonLabels)
+			? rawButtonLabels.filter((label): label is string => typeof label === "string" && label.trim().length > 0).map((label) => label.trim())
+			: undefined;
 
 		if (!id || !name || trackers.some((tracker) => tracker.id === id)) {
 			continue;
@@ -122,7 +128,8 @@ export function normalizeCustomTrackers(value: unknown): CustomTrackerDefinition
 		trackers.push({
 			id,
 			name,
-			path
+			path,
+			...(buttonLabels && buttonLabels.length > 0 ? {buttonLabels} : {})
 		});
 	}
 
@@ -137,6 +144,17 @@ export function upsertCustomTracker(trackers: readonly CustomTrackerDefinition[]
 		...nextTrackers,
 		tracker
 	];
+}
+
+export function buildCustomTrackerTemplateFromDefinition(tracker: CustomTrackerDefinition): TrackerTemplate {
+	const buttonLabels = tracker.buttonLabels && tracker.buttonLabels.length > 0 ? tracker.buttonLabels : [tracker.name];
+
+	return {
+		path: tracker.path,
+		name: tracker.name,
+		taplogId: tracker.id,
+		content: buildCustomTrackerContent(tracker.name, tracker.id, buttonLabels)
+	};
 }
 
 function buildCustomTrackerContent(name: string, id: string, buttonLabels: readonly string[]): string {

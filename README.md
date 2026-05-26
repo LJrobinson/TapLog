@@ -23,6 +23,7 @@ TapLog currently supports:
 13. A static Markdown tracker index note.
 14. Active-tracker validation reports.
 15. A small TapLog settings tab for creating built-in trackers, creating simple custom trackers, and ordering trackers.
+16. Optional ribbon shortcuts for opening the TapLog index and one quick tracker.
 
 TapLog does not currently include a full custom wizard, charts, dashboards, sync, or a full inventory system.
 
@@ -44,6 +45,8 @@ Open TapLog's settings tab in Obsidian to create built-in tracker templates, cre
 The simple custom tracker builder asks for tracker name, optional tracker id, and one button label per line. It generates a plain Markdown tracker note with `timestamp`, `label`, and `value` columns. The generated note remains editable by the user.
 
 The settings tab is a simple launcher and order manager, not a full custom tracker wizard or advanced schema editor. Plain Markdown tracker notes remain the source of truth for tracker config.
+
+Settings can also enable or disable TapLog ribbon actions. By default, TapLog adds shortcuts to open the TapLog index and open the Snack Tracker. The quick tracker ribbon target can be changed to another built-in tracker or a settings-built custom tracker. Ribbon actions are shortcuts; they do not replace tracker notes or create a live dashboard.
 
 ## Current vault output
 

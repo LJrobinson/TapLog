@@ -69,6 +69,101 @@ function obsidianTestStubPlugin() {
 					}
 
 					export class Plugin {}
+					export class PluginSettingTab {
+						constructor(app, plugin) {
+							this.app = app;
+							this.plugin = plugin;
+							this.containerEl = {
+								empty() {},
+								createEl() {
+									return {};
+								}
+							};
+						}
+					}
+					export class Setting {
+						constructor(containerEl) {
+							this.containerEl = containerEl;
+						}
+
+						setName() {
+							return this;
+						}
+
+						setDesc() {
+							return this;
+						}
+
+						setHeading() {
+							return this;
+						}
+
+						addButton(callback) {
+							callback({
+								setButtonText() {
+									return this;
+								},
+								setDisabled() {
+									return this;
+								},
+								onClick() {
+									return this;
+								}
+							});
+							return this;
+						}
+
+						addDropdown(callback) {
+							callback({
+								addOptions() {
+									return this;
+								},
+								setValue() {
+									return this;
+								},
+								onChange() {
+									return this;
+								}
+							});
+							return this;
+						}
+
+						addText(callback) {
+							callback({
+								setPlaceholder() {
+									return this;
+								},
+								onChange() {
+									return this;
+								}
+							});
+							return this;
+						}
+
+						addTextArea(callback) {
+							callback({
+								inputEl: {
+									rows: 0
+								},
+								onChange() {
+									return this;
+								}
+							});
+							return this;
+						}
+
+						addToggle(callback) {
+							callback({
+								setValue() {
+									return this;
+								},
+								onChange() {
+									return this;
+								}
+							});
+							return this;
+						}
+					}
 					export class TFile {}
 					export class TFolder {}
 
