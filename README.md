@@ -18,6 +18,8 @@ When you tap a button, TapLog appends a timestamped row to a monthly CSV file un
 
 TapLog creates missing folders, CSV files, and CSV headers automatically.
 
+To change the tracker later, open TapLog settings and use **Edit existing tracker**.
+
 ## How trackers work
 
 A tracker note has two important parts.
@@ -57,9 +59,27 @@ id: snacks
 
 The code block `id` must match `taplog.id`.
 
-## Edit a tracker
+## Edit a tracker from settings
 
-Tracker notes are the source of truth. To change buttons, columns, defaults, or output paths:
+For normal edits, use TapLog settings:
+
+1. Open **Settings -> TapLog**.
+2. Find **Edit existing tracker**.
+3. Choose a tracker note from the dropdown.
+4. Select **Load tracker**.
+5. Edit output paths, columns, defaults, or buttons.
+6. Select **Save tracker changes**.
+7. Open the tracker in Reading View.
+
+Buttons appear as editable rows. Change the button label, edit its values one per line, select **Add button** to add another row, or select **Remove button** to remove one.
+
+The settings editor writes changes back to the `taplog` frontmatter in the selected Markdown tracker note. Existing CSV logs are not deleted.
+
+Tracker ids are read-only in settings. Create a new tracker if you need a different id.
+
+## Advanced: edit the tracker note directly
+
+Tracker notes are still the source of truth. You can also edit a tracker manually:
 
 1. Open the tracker note, such as `TapLog/Trackers/Snack Tracker.md`.
 2. Switch to Source mode or Editing View.
@@ -67,13 +87,17 @@ Tracker notes are the source of truth. To change buttons, columns, defaults, or 
 4. Save the note.
 5. Switch back to Reading View.
 
-The rendered buttons use the updated config. Existing CSV logs are not deleted when you edit a tracker note.
+The buttons use the updated config after Obsidian refreshes the note.
 
 ## Common edits
 
+You can make these changes from **Settings -> TapLog -> Edit existing tracker**. The examples below show the Markdown config that TapLog updates for you.
+
 ### Change a button label
 
-Change the `label` text:
+In settings, load the tracker and edit the button's label field.
+
+Advanced users can edit the `label` text directly:
 
 ```yaml
 buttons:
@@ -89,7 +113,16 @@ The label changes the button text. The `values` decide what gets written to the 
 
 ### Change what a button logs
 
-Edit the values under the button:
+In settings, edit the button's **Values** box. Use one `key=value` line for each value:
+
+```text
+item=Protein Bar
+quantity=1
+unit=bar
+category=snack
+```
+
+Advanced users can edit the same values in Markdown:
 
 ```yaml
 buttons:
@@ -105,7 +138,9 @@ Future taps use the new values. Existing CSV rows stay as they are.
 
 ### Add a new button
 
-Copy an existing button and change the label and values:
+In settings, select **Add button**, then set the new row's label and values.
+
+Advanced users can add a button block directly:
 
 ```yaml
 buttons:
@@ -121,7 +156,9 @@ Make sure every value key you want to save also appears in `columns`.
 
 ### Remove a button
 
-Delete the whole button block:
+In settings, select **Remove button** on that button row.
+
+Advanced users can delete the whole button block:
 
 ```yaml
   - label: Beef Jerky
@@ -201,7 +238,9 @@ Future taps write to the new file. Old CSV files stay where they are.
 
 ### Change the tracker id
 
-Only change the tracker id if you also update the matching code block and any dashboard blocks that point to it.
+Tracker ids are read-only in the settings editor. Create a new tracker if you need a different id.
+
+Advanced users can change an id manually, but the frontmatter id, code block id, and any dashboard blocks must stay in sync.
 
 ```yaml
 taplog:
@@ -220,9 +259,9 @@ For built-in trackers, changing the output file name is usually safer than chang
 
 ### Fix a generated custom tracker
 
-Open the generated custom tracker note in `TapLog/Trackers/`, switch to Source mode or Editing View, and edit the `taplog` frontmatter directly.
+Use **Edit existing tracker** in settings to fix labels, buttons, columns, defaults, or output file names.
 
-If you only need to fix labels, buttons, columns, defaults, or output file names, edit the note. If you want a new custom tracker id to appear in settings and generated dashboard/index content, create a new custom tracker from settings.
+If you want a new custom tracker id to appear in settings and generated dashboard/index content, create a new custom tracker from settings. Advanced users can also open the generated tracker note in `TapLog/Trackers/` and edit the `taplog` frontmatter directly.
 
 ### Delete or archive a tracker
 
@@ -294,6 +333,7 @@ Use settings to:
 
 - Create built-in tracker templates.
 - Create a simple custom tracker.
+- Edit an existing tracker's common fields.
 - Change tracker order.
 - Enable or disable ribbon shortcuts.
 - Choose the quick tracker opened by the ribbon shortcut.
@@ -326,7 +366,7 @@ Walked
 
 If a button is only a label, TapLog logs `label` and `value: 1`. `timestamp` is always included as the first column.
 
-After a tracker is created, edit it by opening the tracker note and changing the `taplog` frontmatter.
+After a tracker is created, use **Edit existing tracker** for common changes. Existing tracker buttons are edited as rows with a label field, a values box, and add/remove controls. For advanced changes, open the tracker note and edit the `taplog` frontmatter directly.
 
 ## Index and dashboard
 
@@ -402,11 +442,11 @@ If a tracker is invalid, TapLog shows a setup problem Notice with the first issu
 
 ### Wrong value was logged
 
-Edit the tracker note's button `values` or `defaults`. Future taps use the updated config. If an old CSV row is wrong, edit the CSV row directly.
+Open TapLog settings, choose the tracker under **Edit existing tracker**, and update the button values or defaults. Future taps use the updated config. If an old CSV row is wrong, edit the CSV row directly.
 
 ### I made a bad custom tracker
 
-Open the generated tracker note under `TapLog/Trackers/` and edit the `taplog` frontmatter. If the tracker is easier to start over, create a new custom tracker from settings and archive the old tracker note.
+Open TapLog settings and use **Edit existing tracker** to fix common fields. If the tracker is easier to start over, create a new custom tracker from settings and archive the old tracker note.
 
 ### I changed the note but buttons did not refresh
 
@@ -414,7 +454,7 @@ Switch out of Reading View and back, or close and reopen the note. Obsidian may 
 
 ### Mobile buttons are hard to tap
 
-Use shorter button labels where practical. If a long label wraps poorly, edit the button label in the tracker note. The CSV value can stay detailed in `values`.
+Use shorter button labels where practical. If a long label wraps poorly, edit the button label from **Edit existing tracker** in settings. The CSV value can stay detailed in `values`.
 
 ### A setup problem appears
 
@@ -422,8 +462,9 @@ Read the message shown in the TapLog block. It usually points to the missing or 
 
 ## Known limitations
 
-- Persistent current values are not implemented yet. Current values come from `taplog.defaults`, and you edit them in the tracker note.
-- Editing existing trackers from a settings form is not implemented yet. Tracker notes are edited as Markdown today.
+- Persistent current values are not implemented yet. Current values come from `taplog.defaults`, which you can edit in settings or directly in the tracker note.
+- The settings editor covers common fields only: output path, columns, defaults, and buttons. Advanced fields can still be edited in Markdown.
+- Tracker ids are read-only in settings to avoid breaking matching `taplog` code blocks and dashboard references.
 - Existing index and dashboard notes are not automatically regenerated when tracker order or tracker list changes.
 - Validation is currently a Notice plus an optional Markdown report, not a live settings panel.
 - TapLog does not include charts, sync, Dataview integration, Bases integration, external services, or a full inventory system.

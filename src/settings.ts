@@ -1,4 +1,4 @@
-import { Notice, PluginSettingTab, Setting, type App, type Plugin } from "obsidian";
+import { Notice, PluginSettingTab, Setting, TFile, type App, type Plugin } from "obsidian";
 import { createDashboardNote } from "./dashboard";
 import {
 	type CustomTrackerDefinition,
@@ -14,6 +14,19 @@ import {
 	createTrackerNote,
 	getTrackerTemplateById
 } from "./trackerTemplates";
+import {
+	addEditableButtonRow,
+	buildEditableTrackerForm,
+	removeEditableButtonRow,
+	updateTaplogFrontmatter,
+	type EditableButtonRow,
+	type EditableTrackerForm
+} from "./trackerEditor";
+import {
+	getTaplogFromFrontmatter,
+	isRecord as isTaplogRecord,
+	validateTaplogFrontmatterConfig
+} from "./taplogConfig";
 
 export interface TapLogSettings {
 	trackerOrder: string[];
@@ -96,6 +109,8 @@ export function getKnownTrackerIds(customTrackers: readonly CustomTrackerDefinit
 
 export class TapLogSettingTab extends PluginSettingTab {
 	private plugin: TapLogSettingsHost;
+	private editTrackerPath = "";
+	private loadedEditTrackerPath = "";
 
 	constructor(app: App, plugin: TapLogSettingsHost) {
 		super(app, plugin);
@@ -122,6 +137,7 @@ export class TapLogSettingTab extends PluginSettingTab {
 				});
 		}
 
+		this.renderEditExistingTrackerSection(containerEl);
 		this.renderSimpleCustomTrackerSection(containerEl);
 		this.renderDashboardSection(containerEl);
 		this.renderRibbonActionsSection(containerEl);
@@ -277,6 +293,278 @@ export class TapLogSettingTab extends PluginSettingTab {
 			});
 	}
 
+	private renderEditExistingTrackerSection(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName("Edit existing tracker")
+			.setHeading();
+
+		containerEl.createEl("p", {
+			text: "Select a tracker note, change common fields, and save updates back to the Markdown tracker note."
+		});
+
+		let trackerOptions: Array<{ path: string; name: string; id: string }>;
+		try {
+			trackerOptions = this.getEditableTrackerOptions();
+		} catch (error) {
+			console.error("TapLog failed to discover tracker notes.", error);
+			containerEl.createEl("p", {
+				text: `TapLog could not find tracker notes: ${getErrorMessage(error)}`
+			});
+			return;
+		}
+
+		if (trackerOptions.length === 0) {
+			containerEl.createEl("p", {
+				text: "No tracker notes found yet. Create a tracker first."
+			});
+			return;
+		}
+
+		if (!this.editTrackerPath || !trackerOptions.some((tracker) => tracker.path === this.editTrackerPath)) {
+			this.editTrackerPath = trackerOptions[0]?.path ?? "";
+		}
+
+		const selectedTracker = trackerOptions.find((tracker) => tracker.path === this.editTrackerPath) ?? trackerOptions[0];
+		if (!selectedTracker) {
+			return;
+		}
+
+		if (this.loadedEditTrackerPath && !trackerOptions.some((tracker) => tracker.path === this.loadedEditTrackerPath)) {
+			this.loadedEditTrackerPath = "";
+		}
+
+		new Setting(containerEl)
+			.setName("Tracker")
+			.setDesc("Choose a tracker note to edit.")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOptions(Object.fromEntries(trackerOptions.map((tracker) => [tracker.path, `${tracker.name} (${tracker.id})`])))
+					.setValue(selectedTracker.path)
+					.onChange((value) => {
+						this.editTrackerPath = value;
+						this.loadedEditTrackerPath = "";
+						this.display();
+					});
+			})
+			.addButton((button) => {
+				button
+					.setButtonText("Load tracker")
+					.onClick(() => {
+						this.loadedEditTrackerPath = selectedTracker.path;
+						this.display();
+					});
+			})
+			.addButton((button) => {
+				button
+					.setButtonText("Open tracker note")
+					.onClick(() => {
+						void this.openEditableTracker(selectedTracker.path);
+					});
+			});
+
+		if (!this.loadedEditTrackerPath) {
+			containerEl.createEl("p", {
+				text: "Select a tracker note and load it to edit common fields."
+			});
+			return;
+		}
+
+		const loadResult = this.loadEditableTracker(this.loadedEditTrackerPath);
+		if (!loadResult.ok) {
+			new Setting(containerEl)
+				.setName("Tracker setup problem")
+				.setDesc(loadResult.message)
+				.addButton((button) => {
+					button
+						.setButtonText("Reload")
+						.onClick(() => {
+							this.display();
+						});
+				});
+			return;
+		}
+
+		const form: EditableTrackerForm = {
+			...loadResult.form
+		};
+
+		new Setting(containerEl)
+			.setName("Tracker identifier")
+			.setDesc("Read-only for now so the note, code block, and dashboard links stay aligned.")
+			.addText((text) => {
+				text
+					.setValue(form.id)
+					.setDisabled(true);
+			});
+
+		new Setting(containerEl)
+			.setName("Output folder")
+			.setDesc("Folder where the plugin writes CSV files.")
+			.addText((text) => {
+				text
+					.setValue(form.outputFolder)
+					.onChange((value) => {
+						form.outputFolder = value;
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Output file pattern")
+			.setDesc("Use YYYY and MM for monthly CSV paths, such as YYYY-MM/snacks.csv.")
+			.addText((text) => {
+				text
+					.setValue(form.outputFilePattern)
+					.onChange((value) => {
+						form.outputFilePattern = value;
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Columns")
+			.setDesc("One column per line; timestamp is always kept first.")
+			.addTextArea((text) => {
+				text
+					.setValue(form.columnsText)
+					.onChange((value) => {
+						form.columnsText = value;
+					});
+				text.inputEl.rows = 7;
+				text.inputEl.classList.add("taplog-settings-textarea");
+			});
+
+		new Setting(containerEl)
+			.setName("Defaults")
+			.setDesc("One default per line, like method=dab.")
+			.addTextArea((text) => {
+				text
+					.setValue(form.defaultsText)
+					.onChange((value) => {
+						form.defaultsText = value;
+					});
+				text.inputEl.rows = 5;
+				text.inputEl.classList.add("taplog-settings-textarea");
+			});
+
+		this.renderEditableButtonRows(containerEl, form);
+
+		new Setting(containerEl)
+			.setName("Save tracker changes")
+			.setDesc("Writes changes back to the selected Markdown tracker note. Existing CSV logs are not deleted.")
+			.addButton((button) => {
+				button
+					.setButtonText("Save tracker changes")
+					.setCta()
+					.onClick(() => {
+						void this.saveEditableTracker(loadResult.file, loadResult.rawConfig, form);
+					});
+			})
+			.addButton((button) => {
+				button
+					.setButtonText("Reload tracker")
+					.onClick(() => {
+						this.display();
+					});
+			});
+	}
+
+	private renderEditableButtonRows(containerEl: HTMLElement, form: EditableTrackerForm) {
+		new Setting(containerEl)
+			.setName("Buttons")
+			.setDesc("Edit each tracker button with fields below.");
+
+		const buttonListEl = containerEl.createEl("div", {
+			cls: "taplog-settings-button-list"
+		});
+
+		const renderRows = () => {
+			buttonListEl.empty();
+
+			if (form.buttons.length === 0) {
+				buttonListEl.createEl("p", {
+					cls: "taplog-settings-help",
+					text: "No buttons yet. Add a button before saving."
+				});
+			}
+
+			for (let index = 0; index < form.buttons.length; index++) {
+				const button = form.buttons[index];
+				if (!button) {
+					continue;
+				}
+
+				this.renderEditableButtonRow(buttonListEl, button, index, () => {
+					form.buttons = removeEditableButtonRow(form.buttons, index);
+					renderRows();
+				});
+			}
+		};
+
+		renderRows();
+
+		new Setting(containerEl)
+			.setName("Add button")
+			.setDesc("Add another button row to this tracker.")
+			.addButton((button) => {
+				button
+					.setButtonText("Add button")
+					.onClick(() => {
+						form.buttons = addEditableButtonRow(form.buttons);
+						renderRows();
+					});
+			});
+	}
+
+	private renderEditableButtonRow(
+		containerEl: HTMLElement,
+		button: EditableButtonRow,
+		index: number,
+		onRemove: () => void
+	) {
+		const rowEl = containerEl.createEl("div", {
+			cls: "taplog-settings-button-card"
+		});
+
+		new Setting(rowEl)
+			.setName(`Button ${index + 1}`)
+			.setDesc("Text shown on the tracker button.")
+			.addText((text) => {
+				text
+					.setPlaceholder("New button")
+					.setValue(button.label)
+					.onChange((value) => {
+						button.label = value;
+					});
+			})
+			.addButton((removeButton) => {
+				removeButton
+					.setButtonText("Remove button")
+					.onClick(onRemove);
+			});
+
+		new Setting(rowEl)
+			.setName("Values")
+			.setDesc("Use one value per line.")
+			.addTextArea((text) => {
+				text
+					.setPlaceholder("Item=protein bar")
+					.setValue(button.valuesText)
+					.onChange((value) => {
+						button.valuesText = value;
+					});
+				text.inputEl.rows = 4;
+				text.inputEl.classList.add("taplog-settings-textarea");
+			});
+
+		rowEl.createEl("p", {
+			cls: "taplog-settings-help",
+			text: "Example: item=protein bar"
+		});
+		rowEl.createEl("p", {
+			cls: "taplog-settings-help",
+			text: "Use one value per line."
+		});
+	}
+
 	private renderDashboardSection(containerEl: HTMLElement) {
 		new Setting(containerEl)
 			.setName("Dashboard")
@@ -292,6 +580,81 @@ export class TapLogSettingTab extends PluginSettingTab {
 						void createDashboardNote(this.plugin.app, this.plugin.settings.trackerOrder, this.plugin.settings.customTrackers);
 					});
 			});
+	}
+
+	private getEditableTrackerOptions(): Array<{ path: string; name: string; id: string }> {
+		return this.plugin.app.vault.getMarkdownFiles()
+			.map((file) => {
+				const taplogConfig = getTaplogFromFrontmatter(this.plugin.app.metadataCache.getFileCache(file)?.frontmatter);
+				if (taplogConfig === undefined) {
+					return undefined;
+				}
+
+				const id = isTaplogRecord(taplogConfig) && typeof taplogConfig["id"] === "string" && taplogConfig["id"].trim().length > 0
+					? taplogConfig["id"].trim()
+					: "invalid taplog config";
+
+				return {
+					path: file.path,
+					name: file.basename,
+					id
+				};
+			})
+			.filter((tracker): tracker is { path: string; name: string; id: string } => tracker !== undefined)
+			.sort((left, right) => left.name.localeCompare(right.name));
+	}
+
+	private loadEditableTracker(path: string): { ok: true; file: TFile; rawConfig: unknown; form: EditableTrackerForm } | { ok: false; message: string } {
+		const file = this.plugin.app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) {
+			return {
+				ok: false,
+				message: "TapLog could not find the selected tracker note."
+			};
+		}
+
+		const rawConfig = getTaplogFromFrontmatter(this.plugin.app.metadataCache.getFileCache(file)?.frontmatter);
+		const validationResult = validateTaplogFrontmatterConfig(rawConfig);
+		if (!validationResult.ok) {
+			return {
+				ok: false,
+				message: validationResult.message
+			};
+		}
+
+		return {
+			ok: true,
+			file,
+			rawConfig,
+			form: buildEditableTrackerForm(validationResult.config)
+		};
+	}
+
+	private async openEditableTracker(path: string) {
+		const file = this.plugin.app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) {
+			new Notice("The selected tracker note could not be found.");
+			return;
+		}
+
+		await this.plugin.app.workspace.getLeaf(false).openFile(file);
+	}
+
+	private async saveEditableTracker(file: TFile, rawConfig: unknown, form: EditableTrackerForm) {
+		try {
+			const content = await this.plugin.app.vault.read(file);
+			const updateResult = updateTaplogFrontmatter(content, rawConfig, form);
+			if (!updateResult.ok) {
+				new Notice(`TapLog could not save tracker changes: ${updateResult.message}`);
+				return;
+			}
+
+			await this.plugin.app.vault.modify(file, updateResult.value);
+			new Notice(`Saved TapLog tracker changes to ${file.path}.`);
+		} catch (error) {
+			console.error("TapLog failed to save tracker changes.", error);
+			new Notice(`TapLog could not save tracker changes: ${getErrorMessage(error)}`);
+		}
 	}
 
 	private renderRibbonActionsSection(containerEl: HTMLElement) {
@@ -406,4 +769,12 @@ export class TapLogSettingTab extends PluginSettingTab {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message.length > 0) {
+		return error.message;
+	}
+
+	return "Check the tracker note and try again.";
 }
