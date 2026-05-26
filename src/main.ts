@@ -73,7 +73,7 @@ export default class TapLogPlugin extends Plugin {
 			return;
 		}
 
-		renderButtons(el, result.config, (button) => {
+		renderTaplogControls(el, result.config, (button) => {
 			void this.logButtonClick(result.config, button);
 		});
 	}
@@ -398,23 +398,42 @@ function trimMatchingQuotes(value: string): string {
 	return value;
 }
 
-function renderButtons(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => void) {
+function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => void) {
+	const controlsEl = document.createElement("div");
+	controlsEl.className = "taplog-controls";
+
 	const buttonRow = document.createElement("div");
 	buttonRow.className = "taplog-button-row";
 
 	for (const button of config.buttons) {
+		const buttonCard = document.createElement("div");
+		buttonCard.className = "taplog-button-card";
+
 		const buttonEl = document.createElement("button");
 		buttonEl.type = "button";
 		buttonEl.className = "taplog-button";
 		buttonEl.textContent = button.label;
+		buttonEl.title = buildButtonPreview(config, button);
 		buttonEl.addEventListener("click", () => {
 			onButtonClick(button);
 		});
 
-		buttonRow.appendChild(buttonEl);
+		const previewEl = document.createElement("div");
+		previewEl.className = "taplog-button-preview";
+		previewEl.textContent = buildButtonPreview(config, button);
+
+		buttonCard.appendChild(buttonEl);
+		buttonCard.appendChild(previewEl);
+		buttonRow.appendChild(buttonCard);
 	}
 
-	el.appendChild(buttonRow);
+	const outputPathEl = document.createElement("div");
+	outputPathEl.className = "taplog-output-path";
+	outputPathEl.textContent = `Logs to: ${buildOutputPath(config, new Date())}`;
+
+	controlsEl.appendChild(buttonRow);
+	controlsEl.appendChild(outputPathEl);
+	el.appendChild(controlsEl);
 }
 
 function renderSetupError(el: HTMLElement, message: string) {
@@ -466,10 +485,7 @@ async function appendCsvRow(vault: Vault, config: TaplogConfig, button: TaplogBu
 	const outputPath = buildOutputPath(config, now);
 	await ensureParentFolders(vault, outputPath);
 
-	const rowValues = {
-		...config.defaults,
-		...button.values
-	};
+	const rowValues = getMergedButtonValues(config, button);
 	const row = buildCsvRow(config.columns, rowValues, now);
 	const header = serializeCsvRow(config.columns);
 	const existingFile = vault.getAbstractFileByPath(outputPath);
@@ -489,6 +505,42 @@ async function appendCsvRow(vault: Vault, config: TaplogConfig, button: TaplogBu
 	const appendText = `${needsSeparator ? "\n" : ""}${needsHeader ? `${header}\n` : ""}${row}\n`;
 
 	await vault.append(existingFile, appendText);
+}
+
+function buildButtonPreview(config: TaplogConfig, button: TaplogButton): string {
+	const mergedValues = getMergedButtonValues(config, button);
+	const previewParts: string[] = [];
+
+	for (const column of config.columns) {
+		if (column === "timestamp") {
+			continue;
+		}
+
+		const value = mergedValues[column];
+		if (value === undefined || value === null) {
+			continue;
+		}
+
+		const text = valueToCsvText(value);
+		if (text.length === 0) {
+			continue;
+		}
+
+		previewParts.push(`${column} ${text}`);
+	}
+
+	if (previewParts.length === 0) {
+		return `${button.label} logs a timestamped row.`;
+	}
+
+	return `${button.label} logs ${previewParts.join(", ")}.`;
+}
+
+function getMergedButtonValues(config: TaplogConfig, button: TaplogButton): Record<string, unknown> {
+	return {
+		...config.defaults,
+		...button.values
+	};
 }
 
 function buildOutputPath(config: TaplogConfig, now: Date): string {

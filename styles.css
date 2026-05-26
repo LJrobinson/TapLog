@@ -1,13 +1,37 @@
+.taplog-controls {
+	margin: 0.5rem 0;
+}
+
 .taplog-button-row {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.5rem;
+	gap: 0.75rem;
 	margin: 0.5rem 0;
+}
+
+.taplog-button-card {
+	display: flex;
+	flex: 1 1 12rem;
+	flex-direction: column;
+	gap: 0.35rem;
+	min-width: 0;
+	max-width: 22rem;
 }
 
 .taplog-button {
 	min-height: 2.75rem;
 	padding: 0.5rem 0.875rem;
+}
+
+.taplog-button-preview,
+.taplog-output-path {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: 1.35;
+}
+
+.taplog-output-path {
+	margin-top: 0.25rem;
 }
 
 .taplog-error {
