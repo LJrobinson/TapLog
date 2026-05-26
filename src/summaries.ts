@@ -1,5 +1,7 @@
 import { Notice, TFile, TFolder, normalizePath, type App } from "obsidian";
 import { buildOutputPath, ensureParentFolders, formatYearMonth, parseCsvData } from "./csv";
+import { normalizeTrackerOrder, orderTrackerItems } from "./trackerOrder";
+import { BUILT_IN_TRACKER_IDS } from "./trackerTemplates";
 import {
 	type ParLevel,
 	type TaplogConfig,
@@ -71,7 +73,7 @@ export async function createMonthlySummaryForActiveTracker(app: App) {
 	}
 }
 
-export async function createMonthlyRollupSummary(app: App) {
+export async function createMonthlyRollupSummary(app: App, trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS) {
 	try {
 		const now = new Date();
 		const yearMonth = formatYearMonth(now);
@@ -110,8 +112,13 @@ export async function createMonthlyRollupSummary(app: App) {
 			});
 		}
 
+		const orderedTrackerSummaries = orderTrackerItems(
+			trackerSummaries,
+			(summary) => summary.id,
+			normalizeTrackerOrder(trackerOrder, BUILT_IN_TRACKER_IDS)
+		);
 		const rollupPath = normalizePath(`TapLog/Summaries/${yearMonth}/Monthly Rollup.md`);
-		const rollupContent = buildMonthlyRollupSummary(yearMonth, logFolderPath, trackerSummaries);
+		const rollupContent = buildMonthlyRollupSummary(yearMonth, logFolderPath, orderedTrackerSummaries);
 		await ensureParentFolders(app.vault, rollupPath);
 
 		const existingRollupFile = app.vault.getAbstractFileByPath(rollupPath);

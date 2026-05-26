@@ -164,6 +164,19 @@ id: custom
 `
 };
 
+export const BUILT_IN_TRACKER_TEMPLATES: readonly TrackerTemplate[] = [
+	SNACK_TRACKER_TEMPLATE,
+	CANNABIS_TRACKER_TEMPLATE,
+	BASIC_TRACKER_TEMPLATE,
+	CUSTOM_TRACKER_TEMPLATE
+];
+
+export const BUILT_IN_TRACKER_IDS = BUILT_IN_TRACKER_TEMPLATES.map((template) => template.taplogId);
+
+export function getTrackerTemplateById(trackerId: string): TrackerTemplate | undefined {
+	return BUILT_IN_TRACKER_TEMPLATES.find((template) => template.taplogId === trackerId);
+}
+
 export async function createTrackerNote(app: App, template: TrackerTemplate) {
 	const notePath = normalizePath(template.path);
 

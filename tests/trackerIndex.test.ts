@@ -12,6 +12,16 @@ test("tracker index content includes built-in tracker links", () => {
 	assert.match(content, /\[\[TapLog\/Trackers\/Custom Tracker\|Custom Tracker\]\]/);
 });
 
+test("tracker index content follows saved tracker order", () => {
+	const content = buildTrackerIndexContent(["custom", "snacks"]);
+	const customIndex = content.indexOf("[[TapLog/Trackers/Custom Tracker|Custom Tracker]]");
+	const snackIndex = content.indexOf("[[TapLog/Trackers/Snack Tracker|Snack Tracker]]");
+	const cannabisIndex = content.indexOf("[[TapLog/Trackers/Cannabis Tracker|Cannabis Tracker]]");
+
+	assert.ok(customIndex < snackIndex);
+	assert.ok(snackIndex < cannabisIndex);
+});
+
 test("tracker index content lists TapLog commands and output paths", () => {
 	const content = buildTrackerIndexContent();
 

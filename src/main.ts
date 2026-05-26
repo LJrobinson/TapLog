@@ -1,5 +1,6 @@
 import { Notice, Plugin, TFile, type MarkdownPostProcessorContext } from "obsidian";
 import { appendCsvRow, buildOutputPath, getMergedButtonValues, valueToCsvText } from "./csv";
+import { TapLogSettingTab, normalizeTapLogSettings, type TapLogSettings } from "./settings";
 import { createMonthlyRollupSummary, createMonthlySummaryForActiveTracker } from "./summaries";
 import { createTrackerIndexNote } from "./trackerIndex";
 import {
@@ -13,7 +14,12 @@ import { validateActiveTracker } from "./trackerValidation";
 import { getTaplogFromFrontmatter, validateTaplogConfig, type TaplogButton, type TaplogConfig } from "./taplogConfig";
 
 export default class TapLogPlugin extends Plugin {
+	settings: TapLogSettings = normalizeTapLogSettings(undefined);
+
 	async onload() {
+		await this.loadSettings();
+		this.addSettingTab(new TapLogSettingTab(this.app, this));
+
 		this.registerMarkdownCodeBlockProcessor("taplog", (source, el, ctx) => {
 			this.renderTaplogBlock(source, el, ctx);
 		});
@@ -64,7 +70,7 @@ export default class TapLogPlugin extends Plugin {
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
 			name: "TapLog: Create tracker index",
 			callback: () => {
-				void createTrackerIndexNote(this.app);
+				void createTrackerIndexNote(this.app, this.settings.trackerOrder);
 			}
 		});
 
@@ -94,12 +100,21 @@ export default class TapLogPlugin extends Plugin {
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
 			name: "TapLog: Create monthly rollup summary",
 			callback: () => {
-				void createMonthlyRollupSummary(this.app);
+				void createMonthlyRollupSummary(this.app, this.settings.trackerOrder);
 			}
 		});
 	}
 
 	onunload() {
+	}
+
+	async loadSettings() {
+		this.settings = normalizeTapLogSettings(await this.loadData());
+	}
+
+	async saveSettings() {
+		this.settings = normalizeTapLogSettings(this.settings);
+		await this.saveData(this.settings);
 	}
 
 	private renderTaplogBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
