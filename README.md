@@ -142,4 +142,4 @@ For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsid
 
 ## Current status
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The README documents the intended product direction, but the `quicklog` renderer and CSV logging MVP are not implemented yet.
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `quicklog` buttons from a note's frontmatter and show visible setup errors, but CSV logging and monthly output are not implemented yet.
