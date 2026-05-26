@@ -1,4 +1,4 @@
-import { Notice, Plugin, normalizePath, type MarkdownPostProcessorContext, type Vault } from "obsidian";
+import { Notice, Plugin, TFile, TFolder, normalizePath, type MarkdownPostProcessorContext, type Vault } from "obsidian";
 
 interface QuicklogButton {
 	label: string;
@@ -61,8 +61,13 @@ export default class TapLogPlugin extends Plugin {
 	}
 
 	private getQuicklogConfig(ctx: MarkdownPostProcessorContext): unknown {
-		const cache = this.app.metadataCache.getCache(ctx.sourcePath);
-		const frontmatter = cache?.frontmatter ?? ctx.frontmatter;
+		const sourceFile = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+		if (!(sourceFile instanceof TFile)) {
+			return undefined;
+		}
+
+		const cache = this.app.metadataCache.getFileCache(sourceFile);
+		const frontmatter = cache?.frontmatter;
 
 		if (!isRecord(frontmatter)) {
 			return undefined;
@@ -82,12 +87,16 @@ export default class TapLogPlugin extends Plugin {
 	}
 
 	private async createSnackTrackerTestNote() {
-		const notePath = normalizePath("QuickLog/Trackers/Snack Tracker.md");
+		const notePath = normalizePath("TapLog/Trackers/Snack Tracker.md");
 
 		try {
 			await ensureParentFolders(this.app.vault, notePath);
 
-			const existingFile = this.app.vault.getFileByPath(notePath);
+			const existingFile = this.app.vault.getAbstractFileByPath(notePath);
+			if (existingFile && !(existingFile instanceof TFile)) {
+				throw new Error(`"${notePath}" already exists but is not a note.`);
+			}
+
 			const noteFile = existingFile ?? await this.app.vault.create(notePath, SNACK_TRACKER_TEST_NOTE);
 
 			await this.app.workspace.getLeaf(false).openFile(noteFile);
@@ -103,7 +112,7 @@ const SNACK_TRACKER_TEST_NOTE = `---
 quicklog:
   id: snacks
   output_type: csv
-  output_folder: QuickLog/Logs
+  output_folder: TapLog/Logs
   output_file_pattern: YYYY-MM/snacks.csv
   columns:
     - timestamp
@@ -176,7 +185,7 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 	}
 
 	const rawColumns = quicklogConfig["columns"];
-	if (!Array.isArray(rawColumns) || rawColumns.length === 0) {
+	if (!isUnknownArray(rawColumns) || rawColumns.length === 0) {
 		return {
 			ok: false,
 			message: "Missing quicklog columns. Add at least one column in frontmatter."
@@ -212,7 +221,7 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 	}
 
 	const rawButtons = quicklogConfig["buttons"];
-	if (!Array.isArray(rawButtons) || rawButtons.length === 0) {
+	if (!isUnknownArray(rawButtons) || rawButtons.length === 0) {
 		return {
 			ok: false,
 			message: "Missing quicklog buttons. Add at least one button in frontmatter."
@@ -333,17 +342,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isUnknownArray(value: unknown): value is unknown[] {
+	return Array.isArray(value);
+}
+
 async function appendCsvRow(vault: Vault, config: QuicklogConfig, button: QuicklogButton, now: Date) {
 	const outputPath = buildOutputPath(config, now);
 	await ensureParentFolders(vault, outputPath);
 
 	const row = buildCsvRow(config.columns, button.values, now);
 	const header = serializeCsvRow(config.columns);
-	const existingFile = vault.getFileByPath(outputPath);
+	const existingFile = vault.getAbstractFileByPath(outputPath);
 
 	if (!existingFile) {
 		await vault.create(outputPath, `${header}\n${row}\n`);
 		return;
+	}
+
+	if (!(existingFile instanceof TFile)) {
+		throw new Error(`"${outputPath}" already exists but is not a CSV file.`);
 	}
 
 	const existingContent = await vault.read(existingFile);
@@ -379,12 +396,13 @@ async function ensureParentFolders(vault: Vault, filePath: string) {
 
 	for (const part of parts) {
 		currentPath = currentPath.length === 0 ? part : `${currentPath}/${part}`;
+		const existingFile = vault.getAbstractFileByPath(currentPath);
 
-		if (vault.getFolderByPath(currentPath)) {
+		if (existingFile instanceof TFolder) {
 			continue;
 		}
 
-		if (vault.getAbstractFileByPath(currentPath)) {
+		if (existingFile) {
 			throw new Error(`Cannot create folder "${currentPath}" because a file already exists there.`);
 		}
 
@@ -426,9 +444,10 @@ function valueToCsvText(value: unknown): string {
 	}
 
 	try {
-		return JSON.stringify(value);
+		const serializedValue = JSON.stringify(value);
+		return typeof serializedValue === "string" ? serializedValue : "";
 	} catch {
-		return String(value);
+		return "";
 	}
 }
 

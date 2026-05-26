@@ -20,7 +20,7 @@ TapLog's core product shape is:
 The intended MVP output path pattern is:
 
 ```text
-QuickLog/Logs/YYYY-MM/snacks.csv
+TapLog/Logs/YYYY-MM/snacks.csv
 ```
 
 ## MVP target
@@ -29,7 +29,7 @@ The first build target is intentionally small:
 
 1. One tracker note with YAML frontmatter.
 2. One `quicklog` code block that renders buttons.
-3. Button click appends to `QuickLog/Logs/YYYY-MM/snacks.csv`.
+3. Button click appends to `TapLog/Logs/YYYY-MM/snacks.csv`.
 4. Auto-create folder, file, and CSV header when missing.
 5. Friendly visible error if the config is broken.
 
@@ -44,8 +44,8 @@ This is the product shape TapLog is being built toward:
 quicklog:
   id: snacks
   output_type: csv
-  output_folder: QuickLog/Logs/YYYY-MM
-  output_file: snacks.csv
+  output_folder: TapLog/Logs
+  output_file_pattern: YYYY-MM/snacks.csv
 
   columns:
     - timestamp
@@ -92,7 +92,7 @@ The rendered `quicklog` block should become tappable buttons for the configured 
 Clicking **Ate Mosh Bar** in May 2026 should append to:
 
 ```text
-QuickLog/Logs/2026-05/snacks.csv
+TapLog/Logs/2026-05/snacks.csv
 ```
 
 With rows shaped like:
