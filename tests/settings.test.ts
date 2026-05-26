@@ -4,6 +4,7 @@ import { DEFAULT_TAPLOG_SETTINGS, normalizeTapLogSettings } from "../src/setting
 
 test("settings defaults include ribbon actions", () => {
 	assert.equal(DEFAULT_TAPLOG_SETTINGS.showIndexRibbonAction, true);
+	assert.equal(DEFAULT_TAPLOG_SETTINGS.showDashboardRibbonAction, true);
 	assert.equal(DEFAULT_TAPLOG_SETTINGS.showQuickTrackerRibbonAction, true);
 	assert.equal(DEFAULT_TAPLOG_SETTINGS.quickRibbonTrackerId, "snacks");
 });
@@ -19,6 +20,7 @@ test("settings normalization preserves ribbon action settings", () => {
 			}
 		],
 		showIndexRibbonAction: false,
+		showDashboardRibbonAction: true,
 		showQuickTrackerRibbonAction: true,
 		quickRibbonTrackerId: "health"
 	}), {
@@ -31,6 +33,7 @@ test("settings normalization preserves ribbon action settings", () => {
 			}
 		],
 		showIndexRibbonAction: false,
+		showDashboardRibbonAction: true,
 		showQuickTrackerRibbonAction: true,
 		quickRibbonTrackerId: "health"
 	});

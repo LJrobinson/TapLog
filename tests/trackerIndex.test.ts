@@ -41,6 +41,7 @@ test("tracker index content lists TapLog commands and output paths", () => {
 	const content = buildTrackerIndexContent();
 
 	assert.match(content, /TapLog: Create tracker index/);
+	assert.match(content, /TapLog: Create dashboard/);
 	assert.match(content, /TapLog: Create snack tracker/);
 	assert.match(content, /TapLog: Create cannabis tracker/);
 	assert.match(content, /TapLog: Create basic tracker template/);
@@ -51,4 +52,5 @@ test("tracker index content lists TapLog commands and output paths", () => {
 	assert.match(content, /TapLog\/Trackers\//);
 	assert.match(content, /TapLog\/Logs\/YYYY-MM\//);
 	assert.match(content, /TapLog\/Summaries\/YYYY-MM\//);
+	assert.match(content, /\[\[TapLog\/Dashboard\|TapLog Dashboard\]\]/);
 });

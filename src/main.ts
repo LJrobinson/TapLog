@@ -1,5 +1,6 @@
 import { Notice, Plugin, TFile, type MarkdownPostProcessorContext } from "obsidian";
 import { appendCsvRow, buildOutputPath, getMergedButtonValues, valueToCsvText } from "./csv";
+import { createDashboardNote, resolveDashboardTracker } from "./dashboard";
 import { resolveQuickRibbonTrackerTarget } from "./ribbonActions";
 import { TapLogSettingTab, normalizeTapLogSettings, type TapLogSettings } from "./settings";
 import { createMonthlyRollupSummary, createMonthlySummaryForActiveTracker } from "./summaries";
@@ -12,7 +13,13 @@ import {
 	createTrackerNote
 } from "./trackerTemplates";
 import { validateActiveTracker } from "./trackerValidation";
-import { getTaplogFromFrontmatter, validateTaplogConfig, type TaplogButton, type TaplogConfig } from "./taplogConfig";
+import {
+	getTaplogFromFrontmatter,
+	parseTaplogBlockConfig,
+	validateTaplogConfig,
+	type TaplogButton,
+	type TaplogConfig
+} from "./taplogConfig";
 
 export default class TapLogPlugin extends Plugin {
 	settings: TapLogSettings = normalizeTapLogSettings(undefined);
@@ -73,6 +80,16 @@ export default class TapLogPlugin extends Plugin {
 			name: "TapLog: Create tracker index",
 			callback: () => {
 				void createTrackerIndexNote(this.app, this.settings.trackerOrder, this.settings.customTrackers);
+			}
+		});
+
+		this.addCommand({
+			id: "create-dashboard",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create dashboard",
+			callback: () => {
+				void this.openDashboard();
 			}
 		});
 
@@ -140,6 +157,13 @@ export default class TapLogPlugin extends Plugin {
 				void this.openQuickRibbonTracker();
 			}));
 		}
+
+		if (this.settings.showDashboardRibbonAction) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			this.ribbonIconEls.push(this.addRibbonIcon("layout-dashboard", "TapLog: Open dashboard", () => {
+				void this.openDashboard();
+			}));
+		}
 	}
 
 	private clearRibbonActions() {
@@ -152,6 +176,10 @@ export default class TapLogPlugin extends Plugin {
 
 	private async openTrackerIndex() {
 		await createTrackerIndexNote(this.app, this.settings.trackerOrder, this.settings.customTrackers);
+	}
+
+	private async openDashboard() {
+		await createDashboardNote(this.app, this.settings.trackerOrder, this.settings.customTrackers);
 	}
 
 	private async openQuickRibbonTracker() {
@@ -172,7 +200,13 @@ export default class TapLogPlugin extends Plugin {
 		const result = validateTaplogConfig(source, taplogConfig);
 
 		if (!result.ok) {
-			renderSetupError(el, result.message);
+			const dashboardResult = this.getDashboardTaplogConfig(source, result.message);
+			if (!dashboardResult.ok) {
+				renderSetupError(el, dashboardResult.message);
+				return;
+			}
+
+			renderTaplogControls(el, dashboardResult.config, (button) => this.logButtonClick(dashboardResult.config, button), dashboardResult.name);
 			return;
 		}
 
@@ -188,6 +222,53 @@ export default class TapLogPlugin extends Plugin {
 		return getTaplogFromFrontmatter(this.app.metadataCache.getFileCache(sourceFile)?.frontmatter);
 	}
 
+	private getDashboardTaplogConfig(source: string, fallbackMessage: string): { ok: true; config: TaplogConfig; name: string } | { ok: false; message: string } {
+		const blockConfig = parseTaplogBlockConfig(source);
+		if (blockConfig.source !== "tracker") {
+			return {
+				ok: false,
+				message: fallbackMessage
+			};
+		}
+
+		if (!blockConfig.id) {
+			return {
+				ok: false,
+				message: "Missing taplog code block id."
+			};
+		}
+
+		const tracker = resolveDashboardTracker(blockConfig.id, this.settings.customTrackers);
+		if (!tracker) {
+			return {
+				ok: false,
+				message: `Unknown tracker id: ${blockConfig.id}`
+			};
+		}
+
+		const trackerFile = this.app.vault.getAbstractFileByPath(tracker.path);
+		if (!(trackerFile instanceof TFile)) {
+			return {
+				ok: false,
+				message: `Tracker note not found for id: ${blockConfig.id}`
+			};
+		}
+
+		const result = validateTaplogConfig(`id: ${blockConfig.id}`, getTaplogFromFrontmatter(this.app.metadataCache.getFileCache(trackerFile)?.frontmatter));
+		if (!result.ok) {
+			return {
+				ok: false,
+				message: `Tracker config is invalid for id: ${blockConfig.id}`
+			};
+		}
+
+		return {
+			ok: true,
+			config: result.config,
+			name: tracker.name
+		};
+	}
+
 	private async logButtonClick(config: TaplogConfig, button: TaplogButton) {
 		try {
 			await appendCsvRow(this.app.vault, config, button, new Date());
@@ -201,9 +282,16 @@ export default class TapLogPlugin extends Plugin {
 
 const BUTTON_COOLDOWN_MS = 750;
 
-function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => Promise<void>) {
+function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => Promise<void>, heading?: string) {
 	const controlsEl = document.createElement("div");
 	controlsEl.className = "taplog-controls";
+
+	if (heading) {
+		const headingEl = document.createElement("div");
+		headingEl.className = "taplog-tracker-heading";
+		headingEl.textContent = heading;
+		controlsEl.appendChild(headingEl);
+	}
 
 	renderCurrentValues(controlsEl, config);
 

@@ -24,6 +24,7 @@ TapLog currently supports:
 14. Active-tracker validation reports.
 15. A small TapLog settings tab for creating built-in trackers, creating simple custom trackers, and ordering trackers.
 16. Optional ribbon shortcuts for opening the TapLog index and one quick tracker.
+17. A Markdown dashboard note that renders buttons from multiple tracker notes.
 
 TapLog does not currently include a full custom wizard, charts, dashboards, sync, or a full inventory system.
 
@@ -34,6 +35,7 @@ TapLog does not currently include a full custom wizard, charts, dashboards, sync
 - **TapLog: Create basic tracker template**
 - **TapLog: Create custom tracker template**
 - **TapLog: Create tracker index**
+- **TapLog: Create dashboard**
 - **TapLog: Create monthly summary for active tracker**
 - **TapLog: Validate active tracker**
 - **TapLog: Create monthly rollup summary**
@@ -46,7 +48,7 @@ The simple custom tracker builder asks for tracker name, optional tracker id, an
 
 The settings tab is a simple launcher and order manager, not a full custom tracker wizard or advanced schema editor. Plain Markdown tracker notes remain the source of truth for tracker config.
 
-Settings can also enable or disable TapLog ribbon actions. By default, TapLog adds shortcuts to open the TapLog index and open the Snack Tracker. The quick tracker ribbon target can be changed to another built-in tracker or a settings-built custom tracker. Ribbon actions are shortcuts; they do not replace tracker notes or create a live dashboard.
+Settings can also enable or disable TapLog ribbon actions. By default, TapLog adds shortcuts to open the TapLog index, open the dashboard, and open the Snack Tracker. The quick tracker ribbon target can be changed to another built-in tracker or a settings-built custom tracker. Ribbon actions are shortcuts; they do not replace tracker notes.
 
 ## Current vault output
 
@@ -72,6 +74,7 @@ Examples:
 
 ```text
 TapLog/TapLog Index.md
+TapLog/Dashboard.md
 TapLog/Trackers/Snack Tracker.md
 TapLog/Logs/YYYY-MM/snacks.csv
 TapLog/Summaries/YYYY-MM/snacks Summary.md
@@ -80,6 +83,19 @@ TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 ```
 
 Run **TapLog: Create tracker index** to create or open `TapLog/TapLog Index.md`. It is a static Markdown home note with links to the built-in trackers, current vault output paths, a short command reference, and a simple usage flow. It is not a live dashboard.
+
+Run **TapLog: Create dashboard** to create or open `TapLog/Dashboard.md`. The dashboard is a Markdown control panel that renders TapLog buttons from multiple tracker notes using `source: tracker` blocks. Tracker notes remain the source of truth for config, and dashboard button clicks write to each tracker's normal monthly CSV. The generated dashboard respects tracker order.
+
+Example dashboard block:
+
+````markdown
+```taplog
+id: snacks
+source: tracker
+```
+````
+
+The dashboard is not a chart dashboard and does not include live analytics widgets or a drag-and-drop builder.
 
 ## Example tracker note
 
@@ -182,15 +198,16 @@ Invalid trackers show a friendly Notice with the first setup problem. This is no
 
 1. Run each tracker command: snack, cannabis, basic, and custom.
 2. Run **TapLog: Create tracker index** and confirm `TapLog/TapLog Index.md` opens.
-3. Confirm each tracker opens and renders buttons in Reading View.
-4. Click one button in each tracker.
-5. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
-6. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
-7. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
-8. Run **TapLog: Validate active tracker** from a tracker note.
-9. Confirm the validation report opens under `TapLog/Summaries/YYYY-MM/`.
-10. Run **TapLog: Create monthly rollup summary**.
-11. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
+3. Run **TapLog: Create dashboard** and confirm `TapLog/Dashboard.md` opens.
+4. Confirm each tracker opens and renders buttons in Reading View.
+5. Click one button in each tracker.
+6. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
+7. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
+8. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
+9. Run **TapLog: Validate active tracker** from a tracker note.
+10. Confirm the validation report opens under `TapLog/Summaries/YYYY-MM/`.
+11. Run **TapLog: Create monthly rollup summary**.
+12. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
 
 ## Development setup
 

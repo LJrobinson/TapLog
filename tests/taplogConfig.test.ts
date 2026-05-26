@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateTaplogConfig } from "../src/taplogConfig";
+import { parseTaplogBlockConfig, validateTaplogConfig } from "../src/taplogConfig";
 
 test("valid snack-style config passes", () => {
 	const result = validateTaplogConfig("id: snacks", createSnackConfig());
@@ -11,6 +11,13 @@ test("valid snack-style config passes", () => {
 		assert.deepEqual(result.config.columns, ["timestamp", "item", "quantity", "unit", "category"]);
 		assert.equal(result.config.buttons.length, 2);
 	}
+});
+
+test("taplog block config parses id and source", () => {
+	assert.deepEqual(parseTaplogBlockConfig("id: snacks\nsource: tracker"), {
+		id: "snacks",
+		source: "tracker"
+	});
 });
 
 test("valid cannabis-style config with defaults passes", () => {

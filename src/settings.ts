@@ -1,4 +1,5 @@
 import { Notice, PluginSettingTab, Setting, type App, type Plugin } from "obsidian";
+import { createDashboardNote } from "./dashboard";
 import {
 	type CustomTrackerDefinition,
 	buildCustomTrackerTemplate,
@@ -18,6 +19,7 @@ export interface TapLogSettings {
 	trackerOrder: string[];
 	customTrackers: CustomTrackerDefinition[];
 	showIndexRibbonAction: boolean;
+	showDashboardRibbonAction: boolean;
 	showQuickTrackerRibbonAction: boolean;
 	quickRibbonTrackerId: string;
 }
@@ -32,6 +34,7 @@ export const DEFAULT_TAPLOG_SETTINGS: TapLogSettings = {
 	trackerOrder: ["snacks", "cannabis", "basic", "custom"],
 	customTrackers: [],
 	showIndexRibbonAction: true,
+	showDashboardRibbonAction: true,
 	showQuickTrackerRibbonAction: true,
 	quickRibbonTrackerId: "snacks"
 };
@@ -43,6 +46,7 @@ export function normalizeTapLogSettings(rawSettings: unknown): TapLogSettings {
 			trackerOrder: normalizeTrackerOrder(DEFAULT_TAPLOG_SETTINGS.trackerOrder, getKnownTrackerIds(customTrackers)),
 			customTrackers,
 			showIndexRibbonAction: DEFAULT_TAPLOG_SETTINGS.showIndexRibbonAction,
+			showDashboardRibbonAction: DEFAULT_TAPLOG_SETTINGS.showDashboardRibbonAction,
 			showQuickTrackerRibbonAction: DEFAULT_TAPLOG_SETTINGS.showQuickTrackerRibbonAction,
 			quickRibbonTrackerId: DEFAULT_TAPLOG_SETTINGS.quickRibbonTrackerId
 		};
@@ -57,6 +61,9 @@ export function normalizeTapLogSettings(rawSettings: unknown): TapLogSettings {
 		showIndexRibbonAction: typeof rawSettings["showIndexRibbonAction"] === "boolean"
 			? rawSettings["showIndexRibbonAction"]
 			: DEFAULT_TAPLOG_SETTINGS.showIndexRibbonAction,
+		showDashboardRibbonAction: typeof rawSettings["showDashboardRibbonAction"] === "boolean"
+			? rawSettings["showDashboardRibbonAction"]
+			: DEFAULT_TAPLOG_SETTINGS.showDashboardRibbonAction,
 		showQuickTrackerRibbonAction: typeof rawSettings["showQuickTrackerRibbonAction"] === "boolean"
 			? rawSettings["showQuickTrackerRibbonAction"]
 			: DEFAULT_TAPLOG_SETTINGS.showQuickTrackerRibbonAction,
@@ -74,6 +81,7 @@ export function registerCustomTracker(settings: TapLogSettings, tracker: CustomT
 		trackerOrder,
 		customTrackers,
 		showIndexRibbonAction: settings.showIndexRibbonAction,
+		showDashboardRibbonAction: settings.showDashboardRibbonAction,
 		showQuickTrackerRibbonAction: settings.showQuickTrackerRibbonAction,
 		quickRibbonTrackerId: settings.quickRibbonTrackerId
 	};
@@ -115,6 +123,7 @@ export class TapLogSettingTab extends PluginSettingTab {
 		}
 
 		this.renderSimpleCustomTrackerSection(containerEl);
+		this.renderDashboardSection(containerEl);
 		this.renderRibbonActionsSection(containerEl);
 
 		new Setting(containerEl)
@@ -244,6 +253,23 @@ export class TapLogSettingTab extends PluginSettingTab {
 			});
 	}
 
+	private renderDashboardSection(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName("Dashboard")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Create dashboard")
+			.setDesc("Create or open a Markdown dashboard note for the current tracker order.")
+			.addButton((button) => {
+				button
+					.setButtonText("Create dashboard")
+					.onClick(() => {
+						void createDashboardNote(this.plugin.app, this.plugin.settings.trackerOrder, this.plugin.settings.customTrackers);
+					});
+			});
+	}
+
 	private renderRibbonActionsSection(containerEl: HTMLElement) {
 		new Setting(containerEl)
 			.setName("Ribbon actions")
@@ -268,6 +294,17 @@ export class TapLogSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.showQuickTrackerRibbonAction)
 					.onChange((value) => {
 						void this.updateRibbonSetting("showQuickTrackerRibbonAction", value);
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Show dashboard ribbon action")
+			.setDesc("Adds a ribbon shortcut that opens or creates the dashboard.")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showDashboardRibbonAction)
+					.onChange((value) => {
+						void this.updateRibbonSetting("showDashboardRibbonAction", value);
 					});
 			});
 
@@ -330,7 +367,7 @@ export class TapLogSettingTab extends PluginSettingTab {
 		return undefined;
 	}
 
-	private async updateRibbonSetting(setting: "showIndexRibbonAction" | "showQuickTrackerRibbonAction", value: boolean): Promise<void>;
+	private async updateRibbonSetting(setting: "showIndexRibbonAction" | "showDashboardRibbonAction" | "showQuickTrackerRibbonAction", value: boolean): Promise<void>;
 	private async updateRibbonSetting(setting: "quickRibbonTrackerId", value: string): Promise<void>;
 	private async updateRibbonSetting(setting: keyof TapLogSettings, value: boolean | string): Promise<void> {
 		this.plugin.settings = {

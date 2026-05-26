@@ -36,6 +36,11 @@ export type TaplogValidationResult =
 		message: string;
 	};
 
+export interface TaplogBlockConfig {
+	id?: string;
+	source?: string;
+}
+
 export function validateTaplogConfig(source: string, taplogConfig: unknown): TaplogValidationResult {
 	if (taplogConfig === undefined || taplogConfig === null) {
 		return {
@@ -115,7 +120,7 @@ export function validateTaplogConfig(source: string, taplogConfig: unknown): Tap
 	}
 	const parLevels = parseParLevels(taplogConfig["par_levels"]);
 
-	const blockId = parseTaplogBlockId(source);
+	const blockId = parseTaplogBlockConfig(source).id;
 	if (!blockId) {
 		return {
 			ok: false,
@@ -209,9 +214,36 @@ export function isValidGeneratedTrackerConfig(taplogConfig: unknown, expectedId:
 }
 
 export function hasMatchingTaplogCodeBlock(content: string, expectedId: string): boolean {
-	const pattern = new RegExp(`\`\`\`taplog\\s*\\r?\\n\\s*id\\s*:\\s*${escapeRegExp(expectedId)}\\s*\\r?\\n\`\`\``);
+	const pattern = new RegExp(`\`\`\`taplog\\s*\\r?\\n\\s*id\\s*:\\s*${escapeRegExp(expectedId)}(?:\\s*\\r?\\n(?:source\\s*:\\s*tracker\\s*\\r?\\n)?)?\`\`\``);
 
 	return pattern.test(content);
+}
+
+export function parseTaplogBlockConfig(source: string): TaplogBlockConfig {
+	const config: TaplogBlockConfig = {};
+	const lines = source.split(/\r?\n/);
+
+	for (const line of lines) {
+		const trimmedLine = line.trim();
+		if (trimmedLine.length === 0 || trimmedLine.startsWith("#")) {
+			continue;
+		}
+
+		const match = /^(id|source)\s*:\s*(.+)$/.exec(trimmedLine);
+		const key = match?.[1];
+		const rawValue = match?.[2]?.trim();
+		if (!key || !rawValue) {
+			continue;
+		}
+
+		if (key === "id") {
+			config.id = trimMatchingQuotes(rawValue);
+		} else if (key === "source") {
+			config.source = trimMatchingQuotes(rawValue);
+		}
+	}
+
+	return config;
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -245,25 +277,6 @@ function parseParLevels(value: unknown): Record<string, ParLevel> {
 	}
 
 	return parLevels;
-}
-
-function parseTaplogBlockId(source: string): string | undefined {
-	const lines = source.split(/\r?\n/);
-
-	for (const line of lines) {
-		const trimmedLine = line.trim();
-		if (trimmedLine.length === 0 || trimmedLine.startsWith("#")) {
-			continue;
-		}
-
-		const match = /^id\s*:\s*(.+)$/.exec(trimmedLine);
-		const rawId = match?.[1]?.trim();
-		if (rawId) {
-			return trimMatchingQuotes(rawId);
-		}
-	}
-
-	return undefined;
 }
 
 function trimMatchingQuotes(value: string): string {

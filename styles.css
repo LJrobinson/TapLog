@@ -21,6 +21,11 @@
 	font-weight: 600;
 }
 
+.taplog-tracker-heading {
+	margin-bottom: 0.5rem;
+	font-weight: 600;
+}
+
 .taplog-current-values-list {
 	display: grid;
 	grid-template-columns: max-content minmax(0, 1fr);

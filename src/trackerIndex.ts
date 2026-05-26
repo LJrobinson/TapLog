@@ -54,6 +54,10 @@ Use this note as a simple home base for TapLog trackers, logs, summaries, and co
 
 ${orderedTrackerLinks}
 
+## Dashboard
+
+- [[TapLog/Dashboard|TapLog Dashboard]]
+
 If a tracker note does not exist yet, run its create command from the command palette.
 
 ## Vault output
@@ -65,6 +69,7 @@ If a tracker note does not exist yet, run its create command from the command pa
 ## Commands
 
 - TapLog: Create tracker index
+- TapLog: Create dashboard
 - TapLog: Create snack tracker
 - TapLog: Create cannabis tracker
 - TapLog: Create basic tracker template
