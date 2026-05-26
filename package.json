@@ -1,7 +1,7 @@
 {
 	"name": "taplog",
 	"version": "1.0.0",
-	"description": "Configurable one-click timestamped tracking for Obsidian notes.",
+	"description": "Configurable one-tap tracker notes with CSV logs and monthly summaries for Obsidian.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

@@ -1,34 +1,29 @@
 # TapLog
 
-## What TapLog is
+TapLog is a configurable one-tap tracker for Obsidian. A tracker is a normal Markdown note with readable `taplog` frontmatter and a `taplog` code block that renders buttons in Reading View.
 
-TapLog is being built as a configurable one-click/tap timestamped tracker for Obsidian.
+TapLog is useful for small repeated logs: snacks, coffee, symptoms, habits, supplies, cannabis, chores, or any simple timestamped event you want in plain files.
 
-The goal is simple: create a normal Markdown note, define what you want to track, tap a button, and append a timestamped row to a monthly CSV file. TapLog is meant to cover everyday tracking cases like snacks, coffee, medication, symptoms, habits, supplies, or other personal logs without making the user assemble QuickAdd + Buttons + Meta Bind + DataviewJS + CSV plugins into a fragile stack.
+## What works now
 
-## Product shape
+TapLog currently supports:
 
-TapLog's core product shape is:
+1. `taplog` frontmatter config in a Markdown tracker note.
+2. A `taplog` code block that renders tracker buttons.
+3. CSV append logging to monthly files.
+4. Auto-created folders, CSV files, and CSV headers.
+5. Resolved output path display.
+6. Button previews using merged `defaults` plus button `values`.
+7. Current values display when `taplog.defaults` exists.
+8. Friendly visible setup errors for broken config.
+9. Tracker template commands for snack, cannabis, basic, and custom trackers.
+10. Active-tracker monthly summaries.
+11. Snack par/restock guidance when `taplog.par_levels` exists.
+12. Current-month rollup summaries across all TapLog CSVs.
 
-1. A Markdown tracker note acts as both readable config and control panel.
-2. YAML frontmatter defines a `taplog` tracker config.
-3. A `taplog` code block renders buttons inside the note.
-4. The rendered block shows the resolved CSV output path.
-5. Trackers with defaults show a small current values section.
-6. Each button shows a short preview of what it will log.
-7. Button clicks append timestamped rows to monthly CSV files.
-8. Buttons briefly disable after a click to reduce accidental duplicate rapid logs.
-9. A command can create a simple monthly summary from the active tracker's current month CSV.
-10. TapLog auto-creates the needed folders, CSV files, and headers.
-11. Broken config shows a friendly visible error in the note instead of failing silently.
+TapLog does not currently include settings UI, a custom wizard, charts, dashboards, sync, or a full inventory system.
 
-The intended MVP output path pattern is:
-
-```text
-TapLog/Logs/YYYY-MM/snacks.csv
-```
-
-TapLog currently includes command palette starters for:
+## Current commands
 
 - **TapLog: Create snack tracker**
 - **TapLog: Create cannabis tracker**
@@ -37,24 +32,36 @@ TapLog currently includes command palette starters for:
 - **TapLog: Create monthly summary for active tracker**
 - **TapLog: Create monthly rollup summary**
 
-## MVP target
+## Current vault output
 
-The first build target is intentionally small:
+Tracker notes:
 
-1. One tracker note with YAML frontmatter.
-2. One `taplog` code block that renders buttons.
-3. Current values display for tracker defaults.
-4. Visible button previews and a resolved output path.
-5. Button click appends to `TapLog/Logs/YYYY-MM/snacks.csv`.
-6. Monthly summary command for the active tracker.
-7. Auto-create folder, file, and CSV header when missing.
-8. Friendly visible error if the config is broken.
+```text
+TapLog/Trackers/
+```
 
-No charts, dashboards, sync logic, complex settings UI, or full inventory system are part of this first implementation pass.
+Monthly CSV logs:
+
+```text
+TapLog/Logs/YYYY-MM/*.csv
+```
+
+Monthly summary notes:
+
+```text
+TapLog/Summaries/YYYY-MM/*.md
+```
+
+Examples:
+
+```text
+TapLog/Trackers/Snack Tracker.md
+TapLog/Logs/YYYY-MM/snacks.csv
+TapLog/Summaries/YYYY-MM/snacks Summary.md
+TapLog/Summaries/YYYY-MM/Monthly Rollup.md
+```
 
 ## Example tracker note
-
-This is the product shape TapLog is being built toward:
 
 ````markdown
 ---
@@ -89,19 +96,11 @@ taplog:
 
     - label: Beef Jerky
       values:
-        item: beef jerky
+        item: Beef Jerky
         quantity: 1
         unit: bag
         category: snack
-
-    - label: Red Bull
-      values:
-        item: red bull
-        quantity: 1
-        unit: can
-        category: drink
 ---
-```
 
 # Snack Tracker
 
@@ -110,126 +109,57 @@ id: snacks
 ```
 ````
 
-The rendered `taplog` block becomes tappable buttons, a resolved output destination, and a short preview for each button.
+The rendered block shows buttons, a resolved CSV destination, and a short preview for each button. If the tracker has `defaults`, TapLog also shows them as current values above the buttons.
 
-The snack tracker command creates:
+## CSV logging
 
-```text
-TapLog/Trackers/Snack Tracker.md
-```
-
-The cannabis tracker command creates:
+Clicking **Ate Mosh Bar** appends to the current month CSV:
 
 ```text
-TapLog/Trackers/Cannabis Tracker.md
+TapLog/Logs/YYYY-MM/snacks.csv
 ```
 
-The basic tracker template command creates:
-
-```text
-TapLog/Trackers/Basic Tracker.md
-```
-
-The custom tracker template command creates:
-
-```text
-TapLog/Trackers/Custom Tracker.md
-```
-
-Custom Tracker is an editable starter note. It gives you a small working `taplog` config that you can change by editing the tracker id, output file pattern, columns, defaults, buttons, and button values in Markdown frontmatter. It is not a full setup wizard.
-
-Cannabis CSV output is:
-
-```text
-TapLog/Logs/YYYY-MM/cannabis.csv
-```
-
-Basic tracker CSV output is:
-
-```text
-TapLog/Logs/YYYY-MM/basic.csv
-```
-
-Custom tracker CSV output is:
-
-```text
-TapLog/Logs/YYYY-MM/custom.csv
-```
-
-## Example CSV output
-
-Clicking **Ate Mosh Bar** in May 2026 should append to:
-
-```text
-TapLog/Logs/2026-05/snacks.csv
-```
-
-With rows shaped like:
+Rows use the tracker columns:
 
 ```csv
 timestamp,item,quantity,unit,category
 2026-05-18 22:46,Mosh Bar,1,bar,snack
 ```
 
-If the folder or CSV file does not exist yet, the MVP should create it and write the header before appending the first row.
-
-Before clicking, the rendered button preview shows the configured values that will be logged. For example, **Ate Mosh Bar** previews item, quantity, unit, and category. Cannabis tracker buttons preview the merged tracker defaults, such as strain and method, plus the button size.
-
-Trackers can define reusable defaults. When defaults exist, TapLog shows them as **Current values** above the buttons and uses them for previews and CSV rows. In the generated Cannabis Tracker, edit `taplog.defaults.strain` in the frontmatter, then refresh or reopen the note to use the new strain.
-
 ## Monthly summaries
 
-Run **TapLog: Create monthly summary for active tracker** while viewing a tracker note to summarize the current month CSV. TapLog writes the summary to:
+Run **TapLog: Create monthly summary for active tracker** while viewing a tracker note. TapLog reads that tracker's current month CSV and regenerates:
 
 ```text
 TapLog/Summaries/YYYY-MM/{tracker-id} Summary.md
 ```
 
-Every summary includes tracker id, month, source CSV path, and total event count. Snack summaries group item quantities when `item` and `quantity` columns exist. Cannabis summaries group event counts by `size` and `strain` when those columns exist.
+Every active-tracker summary includes tracker id, month, source CSV path, and total event count. Snack summaries group item quantities and can include simple par/restock guidance when `taplog.par_levels` exists. Cannabis summaries group event counts by `size` and `strain` when those columns exist.
 
-Snack trackers can optionally define `par_levels` in frontmatter. When `par_levels` are present, the monthly summary adds simple restock guidance:
-
-```yaml
-par_levels:
-  Mosh Bar:
-    par: 12
-    unit: bar
-  Beef Jerky:
-    par: 6
-    unit: bag
-```
-
-The suggested restock amount is intentionally simple: if monthly usage is greater than par, use monthly usage; otherwise use par. TapLog does not provide full inventory management yet.
-
-Run **TapLog: Create monthly rollup summary** to summarize all CSV files in the current month log folder:
+Run **TapLog: Create monthly rollup summary** to summarize all CSV files in:
 
 ```text
 TapLog/Logs/YYYY-MM/
 ```
 
-The rollup is regenerated at:
+The rollup regenerates:
 
 ```text
 TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 ```
 
-It includes month, source folder, tracker count, total event count, and one small section per tracker CSV. It is a plain Markdown review note, not a dashboard or chart view.
+It includes month, source folder, tracker count, total event count, and one small section per tracker CSV.
 
-## Build roadmap
+## Manual test checklist
 
-The roadmap from `TapLog Idea.md` is:
-
-1. Markdown tracker note with `taplog` config.
-2. `taplog` code block button renderer.
-3. Button click logging to monthly CSV output.
-4. Auto-created folders, files, and CSV headers.
-5. Friendly visible config validation errors.
-6. Additional tracker templates.
-7. Basic tracker template refinements.
-8. More summary types.
-9. More par level tools.
-10. Persistent current values.
-11. Friendly setup UI.
+1. Run each tracker command: snack, cannabis, basic, and custom.
+2. Confirm each tracker opens and renders buttons in Reading View.
+3. Click one button in each tracker.
+4. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
+5. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
+6. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
+7. Run **TapLog: Create monthly rollup summary**.
+8. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
 
 ## Development setup
 
@@ -251,8 +181,14 @@ Create a production build:
 npm run build
 ```
 
-For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
+For manual plugin testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
 
-## Current status
+## Roadmap
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, guard buttons against accidental rapid duplicate clicks, show visible setup errors, create snack, cannabis, basic, and custom tracker notes, append clicked button rows to monthly CSV files, generate simple monthly summaries from the active tracker, and generate a current-month rollup across tracker CSVs. Snack summaries can include simple par/restock guidance when `par_levels` are configured. A full setup UI, settings UI, charts, and dashboards are not implemented yet.
+From `TapLog Idea.md`, likely next steps are:
+
+1. More tracker template refinement.
+2. More summary types.
+3. More par level tools.
+4. Persistent current values.
+5. Friendly setup UI.
