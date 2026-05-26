@@ -13,7 +13,8 @@ export default tseslint.config(
 				projectService: {
 					allowDefaultProject: [
 						'eslint.config.js',
-						'manifest.json'
+						'manifest.json',
+						'tests/*.test.ts'
 					]
 				},
 				tsconfigRootDir: import.meta.dirname,
@@ -22,6 +23,16 @@ export default tseslint.config(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		files: [
+			"scripts/**/*.mjs",
+			"tests/**/*.ts"
+		],
+		rules: {
+			"@typescript-eslint/no-floating-promises": "off",
+			"import/no-nodejs-modules": "off"
+		}
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",

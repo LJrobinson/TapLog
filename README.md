@@ -181,6 +181,12 @@ Create a production build:
 npm run build
 ```
 
+Run automated helper tests:
+
+```bash
+npm run test
+```
+
 For manual plugin testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
 
 ## Roadmap

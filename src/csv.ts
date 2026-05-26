@@ -123,7 +123,7 @@ function buildCsvRow(columns: string[], values: Record<string, unknown>, now: Da
 	}));
 }
 
-function serializeCsvRow(values: unknown[]): string {
+export function serializeCsvRow(values: unknown[]): string {
 	return values.map(csvEscape).join(",");
 }
 
