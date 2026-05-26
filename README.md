@@ -39,7 +39,7 @@ No charts, dashboards, sync logic, complex settings UI, summaries, par levels, o
 
 This is the product shape TapLog is being built toward:
 
-````markdown
+```markdown
 ---
 quicklog:
   id: snacks
@@ -76,13 +76,14 @@ quicklog:
         unit: can
         category: drink
 ---
+```
 
 # Snack Tracker
 
 ```quicklog
 id: snacks
 ```
-````
+
 
 The rendered `quicklog` block should become tappable buttons for the configured tracker.
 

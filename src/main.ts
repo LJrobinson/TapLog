@@ -29,6 +29,16 @@ export default class TapLogPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor("quicklog", (source, el, ctx) => {
 			this.renderQuicklogBlock(source, el, ctx);
 		});
+
+		this.addCommand({
+			id: "create-snack-tracker-test-note",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create snack tracker test note",
+			callback: () => {
+				void this.createSnackTrackerTestNote();
+			}
+		});
 	}
 
 	onunload() {
@@ -70,7 +80,58 @@ export default class TapLogPlugin extends Plugin {
 			new Notice(`TapLog could not write the log row: ${getErrorMessage(error)}`);
 		}
 	}
+
+	private async createSnackTrackerTestNote() {
+		const notePath = normalizePath("QuickLog/Trackers/Snack Tracker.md");
+
+		try {
+			await ensureParentFolders(this.app.vault, notePath);
+
+			const existingFile = this.app.vault.getFileByPath(notePath);
+			const noteFile = existingFile ?? await this.app.vault.create(notePath, SNACK_TRACKER_TEST_NOTE);
+
+			await this.app.workspace.getLeaf(false).openFile(noteFile);
+			new Notice(existingFile ? "Opened snack tracker test note." : "Created snack tracker test note.");
+		} catch (error) {
+			console.error("TapLog failed to create snack tracker test note.", error);
+			new Notice(`TapLog could not create the test note: ${getErrorMessage(error)}`);
+		}
+	}
 }
+
+const SNACK_TRACKER_TEST_NOTE = `---
+quicklog:
+  id: snacks
+  output_type: csv
+  output_folder: QuickLog/Logs
+  output_file_pattern: YYYY-MM/snacks.csv
+  columns:
+    - timestamp
+    - item
+    - quantity
+    - unit
+    - category
+  buttons:
+    - label: Ate Mosh Bar
+      values:
+        item: Mosh Bar
+        quantity: 1
+        unit: bar
+        category: snack
+    - label: Beef Jerky
+      values:
+        item: Beef Jerky
+        quantity: 1
+        unit: bag
+        category: snack
+---
+
+# Snack Tracker
+
+\`\`\`quicklog
+id: snacks
+\`\`\`
+`;
 
 function validateQuicklogConfig(source: string, quicklogConfig: unknown): QuicklogValidationResult {
 	if (!isRecord(quicklogConfig)) {
