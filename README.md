@@ -187,6 +187,14 @@ Run automated helper tests:
 npm run test
 ```
 
+Before pushing changes, run the same validation used by CI:
+
+```bash
+npm run build
+npm run lint
+npm run test
+```
+
 For manual plugin testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
 
 ## Roadmap
