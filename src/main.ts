@@ -57,6 +57,16 @@ export default class TapLogPlugin extends Plugin {
 				void this.createTrackerNote(CANNABIS_TRACKER_TEMPLATE);
 			}
 		});
+
+		this.addCommand({
+			id: "create-monthly-summary-active-tracker",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create monthly summary for active tracker",
+			callback: () => {
+				void this.createMonthlySummaryForActiveTracker();
+			}
+		});
 	}
 
 	onunload() {
@@ -136,6 +146,62 @@ export default class TapLogPlugin extends Plugin {
 
 		await this.app.vault.modify(file, template.content);
 		return true;
+	}
+
+	private async createMonthlySummaryForActiveTracker() {
+		const activeFile = this.app.workspace.getActiveFile();
+
+		if (!activeFile || activeFile.extension !== "md") {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			new Notice("TapLog needs an active tracker note to create a summary.");
+			return;
+		}
+
+		const configResult = validateTaplogFrontmatterConfig(getTaplogFromFrontmatter(this.app.metadataCache.getFileCache(activeFile)?.frontmatter));
+		if (!configResult.ok) {
+			new Notice(`TapLog summary problem: ${configResult.message}`);
+			return;
+		}
+
+		try {
+			const now = new Date();
+			const csvPath = buildOutputPath(configResult.config, now);
+			const csvFile = this.app.vault.getAbstractFileByPath(csvPath);
+
+			if (!csvFile) {
+				new Notice(`TapLog has no log file yet for this tracker/month: ${csvPath}`);
+				return;
+			}
+
+			if (!(csvFile instanceof TFile)) {
+				new Notice(`TapLog could not read the log file because "${csvPath}" is not a CSV file.`);
+				return;
+			}
+
+			const csvContent = await this.app.vault.read(csvFile);
+			const summaryPath = buildSummaryPath(configResult.config, now);
+			const summaryContent = buildMonthlySummary(configResult.config, csvPath, csvContent, now);
+
+			await ensureParentFolders(this.app.vault, summaryPath);
+
+			const existingSummaryFile = this.app.vault.getAbstractFileByPath(summaryPath);
+			let summaryFile: TFile;
+
+			if (!existingSummaryFile) {
+				summaryFile = await this.app.vault.create(summaryPath, summaryContent);
+			} else if (existingSummaryFile instanceof TFile) {
+				await this.app.vault.modify(existingSummaryFile, summaryContent);
+				summaryFile = existingSummaryFile;
+			} else {
+				throw new Error(`"${summaryPath}" already exists but is not a summary note.`);
+			}
+
+			await this.app.workspace.getLeaf(false).openFile(summaryFile);
+			new Notice(`Created monthly summary for ${configResult.config.id}.`);
+		} catch (error) {
+			console.error("TapLog failed to create monthly summary.", error);
+			new Notice(`TapLog could not create the monthly summary: ${getErrorMessage(error)}`);
+		}
 	}
 }
 
@@ -365,6 +431,15 @@ function validateTaplogConfig(source: string, taplogConfig: unknown): TaplogVali
 	};
 }
 
+function validateTaplogFrontmatterConfig(taplogConfig: unknown): TaplogValidationResult {
+	const rawConfigId = isRecord(taplogConfig) ? taplogConfig["id"] : undefined;
+	const source = typeof rawConfigId === "string" && rawConfigId.trim().length > 0
+		? `id: ${rawConfigId.trim()}`
+		: "id: taplog";
+
+	return validateTaplogConfig(source, taplogConfig);
+}
+
 function parseTaplogBlockId(source: string): string | undefined {
 	const lines = source.split(/\r?\n/);
 
@@ -584,6 +659,175 @@ function buildOutputPath(config: TaplogConfig, now: Date): string {
 	return normalizePath(replaceDateTokens(`${config.outputFolder}/${config.outputFilePattern}`, now));
 }
 
+function buildSummaryPath(config: TaplogConfig, now: Date): string {
+	return normalizePath(`TapLog/Summaries/${formatYearMonth(now)}/${config.id} Summary.md`);
+}
+
+function buildMonthlySummary(config: TaplogConfig, csvPath: string, csvContent: string, now: Date): string {
+	const csvData = parseCsvData(csvContent);
+	const yearMonth = formatYearMonth(now);
+	const lines = [
+		`# ${config.id} Summary - ${yearMonth}`,
+		"",
+		`Tracker: ${config.id}`,
+		`Month: ${yearMonth}`,
+		`Source CSV: \`${csvPath}\``,
+		`Total events: ${csvData.rows.length}`,
+		""
+	];
+
+	if (csvData.headers.includes("item") && csvData.headers.includes("quantity")) {
+		appendQuantitySummary(lines, "Item usage totals", groupQuantityByColumn(csvData.rows, "item", "quantity"));
+	}
+
+	if (csvData.headers.includes("size")) {
+		appendCountSummary(lines, "Usage by size", groupCountByColumn(csvData.rows, "size"));
+	}
+
+	if (csvData.headers.includes("strain")) {
+		appendCountSummary(lines, "Usage by strain", groupCountByColumn(csvData.rows, "strain"));
+	}
+
+	return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function parseCsvData(content: string): { headers: string[]; rows: Array<Record<string, string>> } {
+	const csvRows = parseCsvRows(content)
+		.filter((row) => row.some((cell) => cell.length > 0));
+	const headers = csvRows[0] ?? [];
+	const rows = csvRows.slice(1).map((row) => {
+		const record: Record<string, string> = {};
+
+		for (let index = 0; index < headers.length; index++) {
+			const header = headers[index];
+			if (header) {
+				record[header] = row[index] ?? "";
+			}
+		}
+
+		return record;
+	});
+
+	return {headers, rows};
+}
+
+function parseCsvRows(content: string): string[][] {
+	const rows: string[][] = [];
+	const normalizedContent = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	let row: string[] = [];
+	let cell = "";
+	let inQuotes = false;
+
+	for (let index = 0; index < normalizedContent.length; index++) {
+		const character = normalizedContent[index];
+
+		if (inQuotes) {
+			if (character === "\"") {
+				if (normalizedContent[index + 1] === "\"") {
+					cell += "\"";
+					index++;
+				} else {
+					inQuotes = false;
+				}
+			} else {
+				cell += character;
+			}
+
+			continue;
+		}
+
+		if (character === "\"") {
+			inQuotes = true;
+		} else if (character === ",") {
+			row.push(cell);
+			cell = "";
+		} else if (character === "\n") {
+			row.push(cell);
+			rows.push(row);
+			row = [];
+			cell = "";
+		} else {
+			cell += character;
+		}
+	}
+
+	if (cell.length > 0 || row.length > 0) {
+		row.push(cell);
+		rows.push(row);
+	}
+
+	return rows;
+}
+
+function appendQuantitySummary(lines: string[], heading: string, totals: Map<string, number>) {
+	lines.push(`## ${heading}`);
+
+	if (totals.size === 0) {
+		lines.push("", "- No usage rows found.", "");
+		return;
+	}
+
+	lines.push("");
+	for (const [label, total] of sortedMapEntries(totals)) {
+		lines.push(`- ${label}: ${formatSummaryNumber(total)}`);
+	}
+	lines.push("");
+}
+
+function appendCountSummary(lines: string[], heading: string, counts: Map<string, number>) {
+	lines.push(`## ${heading}`);
+
+	if (counts.size === 0) {
+		lines.push("", "- No usage rows found.", "");
+		return;
+	}
+
+	lines.push("");
+	for (const [label, count] of sortedMapEntries(counts)) {
+		lines.push(`- ${label}: ${count}`);
+	}
+	lines.push("");
+}
+
+function groupQuantityByColumn(rows: Array<Record<string, string>>, groupColumn: string, quantityColumn: string): Map<string, number> {
+	const totals = new Map<string, number>();
+
+	for (const row of rows) {
+		const label = row[groupColumn]?.trim();
+		if (!label) {
+			continue;
+		}
+
+		const quantity = Number.parseFloat(row[quantityColumn] ?? "");
+		totals.set(label, (totals.get(label) ?? 0) + (Number.isFinite(quantity) ? quantity : 0));
+	}
+
+	return totals;
+}
+
+function groupCountByColumn(rows: Array<Record<string, string>>, groupColumn: string): Map<string, number> {
+	const counts = new Map<string, number>();
+
+	for (const row of rows) {
+		const label = row[groupColumn]?.trim();
+		if (!label) {
+			continue;
+		}
+
+		counts.set(label, (counts.get(label) ?? 0) + 1);
+	}
+
+	return counts;
+}
+
+function sortedMapEntries(map: Map<string, number>): Array<[string, number]> {
+	return Array.from(map.entries()).sort(([left], [right]) => left.localeCompare(right));
+}
+
+function formatSummaryNumber(value: number): string {
+	return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
 function replaceDateTokens(value: string, now: Date): string {
 	const year = String(now.getFullYear());
 	const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -665,14 +909,20 @@ function valueToDisplayText(value: unknown): string {
 }
 
 function formatLocalTimestamp(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const yearMonth = formatYearMonth(date);
 	const day = String(date.getDate()).padStart(2, "0");
 	const hour = String(date.getHours()).padStart(2, "0");
 	const minute = String(date.getMinutes()).padStart(2, "0");
 	const second = String(date.getSeconds()).padStart(2, "0");
 
-	return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+	return `${yearMonth}-${day} ${hour}:${minute}:${second}`;
+}
+
+function formatYearMonth(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+
+	return `${year}-${month}`;
 }
 
 function getErrorMessage(error: unknown): string {

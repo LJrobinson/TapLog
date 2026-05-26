@@ -17,8 +17,9 @@ TapLog's core product shape is:
 5. Trackers with defaults show a small current values section.
 6. Each button shows a short preview of what it will log.
 7. Button clicks append timestamped rows to monthly CSV files.
-8. TapLog auto-creates the needed folders, CSV files, and headers.
-9. Broken config shows a friendly visible error in the note instead of failing silently.
+8. A command can create a simple monthly summary from the active tracker's current month CSV.
+9. TapLog auto-creates the needed folders, CSV files, and headers.
+10. Broken config shows a friendly visible error in the note instead of failing silently.
 
 The intended MVP output path pattern is:
 
@@ -30,6 +31,7 @@ TapLog currently includes command palette starters for:
 
 - **TapLog: Create snack tracker**
 - **TapLog: Create cannabis tracker**
+- **TapLog: Create monthly summary for active tracker**
 
 ## MVP target
 
@@ -40,10 +42,11 @@ The first build target is intentionally small:
 3. Current values display for tracker defaults.
 4. Visible button previews and a resolved output path.
 5. Button click appends to `TapLog/Logs/YYYY-MM/snacks.csv`.
-6. Auto-create folder, file, and CSV header when missing.
-7. Friendly visible error if the config is broken.
+6. Monthly summary command for the active tracker.
+7. Auto-create folder, file, and CSV header when missing.
+8. Friendly visible error if the config is broken.
 
-No charts, dashboards, sync logic, complex settings UI, summaries, or par levels are part of this first implementation pass.
+No charts, dashboards, sync logic, complex settings UI, or par levels are part of this first implementation pass.
 
 ## Example tracker note
 
@@ -136,6 +139,16 @@ Before clicking, the rendered button preview shows the configured values that wi
 
 Trackers can define reusable defaults. When defaults exist, TapLog shows them as **Current values** above the buttons and uses them for previews and CSV rows. In the generated Cannabis Tracker, edit `taplog.defaults.strain` in the frontmatter, then refresh or reopen the note to use the new strain.
 
+## Monthly summaries
+
+Run **TapLog: Create monthly summary for active tracker** while viewing a tracker note to summarize the current month CSV. TapLog writes the summary to:
+
+```text
+TapLog/Summaries/YYYY-MM/{tracker-id} Summary.md
+```
+
+Every summary includes tracker id, month, source CSV path, and total event count. Snack summaries group item quantities when `item` and `quantity` columns exist. Cannabis summaries group event counts by `size` and `strain` when those columns exist. Par level suggestions are not implemented yet.
+
 ## Build roadmap
 
 The roadmap from `TapLog Idea.md` is:
@@ -146,7 +159,7 @@ The roadmap from `TapLog Idea.md` is:
 4. Auto-created folders, files, and CSV headers.
 5. Friendly visible config validation errors.
 6. Additional tracker templates.
-7. Monthly summaries.
+7. More summary types.
 8. Par level suggestions.
 9. Persistent current values.
 10. Friendly setup UI.
@@ -175,4 +188,4 @@ For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsid
 
 ## Current status
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, show visible setup errors, create snack and cannabis tracker notes, and append clicked button rows to monthly CSV files. Summaries, par levels, and friendly setup UI are not implemented yet.
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, show visible setup errors, create snack and cannabis tracker notes, append clicked button rows to monthly CSV files, and generate simple monthly summaries from the active tracker. Par levels and friendly setup UI are not implemented yet.
