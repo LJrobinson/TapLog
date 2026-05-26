@@ -1,90 +1,145 @@
-# Obsidian Sample Plugin
+# TapLog
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+## What TapLog is
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+TapLog is being built as a configurable one-click/tap timestamped tracker for Obsidian.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+The goal is simple: create a normal Markdown note, define what you want to track, tap a button, and append a timestamped row to a monthly CSV file. TapLog is meant to cover everyday tracking cases like snacks, coffee, medication, symptoms, habits, supplies, or other personal logs without making the user assemble QuickAdd + Buttons + Meta Bind + DataviewJS + CSV plugins into a fragile stack.
 
-## First time developing plugins?
+## Product shape
 
-Quick starting guide for new plugin devs:
+TapLog's core product shape is:
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+1. A Markdown tracker note acts as both readable config and control panel.
+2. YAML frontmatter defines a `quicklog` tracker config.
+3. A `quicklog` code block renders buttons inside the note.
+4. Button clicks append timestamped rows to monthly CSV files.
+5. TapLog auto-creates the needed folders, CSV files, and headers.
+6. Broken config shows a friendly visible error in the note instead of failing silently.
 
-## Releasing new releases
+The intended MVP output path pattern is:
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+```text
+QuickLog/Logs/YYYY-MM/snacks.csv
 ```
 
-If you have multiple URLs, you can also do:
+## MVP target
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+The first build target is intentionally small:
+
+1. One tracker note with YAML frontmatter.
+2. One `quicklog` code block that renders buttons.
+3. Button click appends to `QuickLog/Logs/YYYY-MM/snacks.csv`.
+4. Auto-create folder, file, and CSV header when missing.
+5. Friendly visible error if the config is broken.
+
+No charts, dashboards, sync logic, complex settings UI, summaries, par levels, or templates are part of this first implementation pass.
+
+## Example tracker note
+
+This is the product shape TapLog is being built toward:
+
+````markdown
+---
+quicklog:
+  id: snacks
+  output_type: csv
+  output_folder: QuickLog/Logs/YYYY-MM
+  output_file: snacks.csv
+
+  columns:
+    - timestamp
+    - item
+    - quantity
+    - unit
+    - category
+
+  buttons:
+    - label: Ate Mosh Bar
+      values:
+        item: Mosh Bar
+        quantity: 1
+        unit: bar
+        category: snack
+
+    - label: Beef Jerky
+      values:
+        item: beef jerky
+        quantity: 1
+        unit: bag
+        category: snack
+
+    - label: Red Bull
+      values:
+        item: red bull
+        quantity: 1
+        unit: can
+        category: drink
+---
+
+# Snack Tracker
+
+```quicklog
+id: snacks
+```
+````
+
+The rendered `quicklog` block should become tappable buttons for the configured tracker.
+
+## Example CSV output
+
+Clicking **Ate Mosh Bar** in May 2026 should append to:
+
+```text
+QuickLog/Logs/2026-05/snacks.csv
 ```
 
-## API Documentation
+With rows shaped like:
 
-See https://docs.obsidian.md
+```csv
+timestamp,item,quantity,unit,category
+2026-05-18 22:46,Mosh Bar,1,bar,snack
+```
+
+If the folder or CSV file does not exist yet, the MVP should create it and write the header before appending the first row.
+
+## Build roadmap
+
+The roadmap from `TapLog Idea.md` is:
+
+1. Markdown tracker note with `quicklog` config.
+2. `quicklog` code block button renderer.
+3. Button click logging to monthly CSV output.
+4. Auto-created folders, files, and CSV headers.
+5. Friendly visible config validation errors.
+6. Tracker templates.
+7. Monthly summaries.
+8. Par level suggestions.
+9. Persistent current values.
+10. Friendly setup UI.
+
+## Development setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development build in watch mode:
+
+```bash
+npm run dev
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
+
+## Current status
+
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The README documents the intended product direction, but the `quicklog` renderer and CSV logging MVP are not implemented yet.

@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "taplog",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Configurable one-click timestamped tracking for Obsidian notes.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
