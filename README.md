@@ -42,11 +42,21 @@ TapLog does not currently include a full custom wizard, charts, dashboards, sync
 
 ## Settings tab
 
-Open TapLog's settings tab in Obsidian to create built-in tracker templates, create a simple custom tracker, and set tracker order. Tracker order affects newly generated `TapLog/TapLog Index.md` notes and the section order in **TapLog: Create monthly rollup summary**.
+Open TapLog's settings tab in Obsidian to create built-in tracker templates, create a configurable custom tracker, and set tracker order. Tracker order affects newly generated `TapLog/TapLog Index.md` notes and the section order in **TapLog: Create monthly rollup summary**.
 
-The simple custom tracker builder asks for tracker name, optional tracker id, and one button label per line. It generates a plain Markdown tracker note with `timestamp`, `label`, and `value` columns. The generated note remains editable by the user.
+The custom tracker builder asks for tracker name, optional tracker id, columns, defaults, and buttons. Columns are entered one per line. Defaults are entered as `key=value` lines. Buttons can be simple labels, or labels with values:
 
-The settings tab is a simple launcher and order manager, not a full custom tracker wizard or advanced schema editor. Plain Markdown tracker notes remain the source of truth for tracker config.
+```text
+Took Vitamin | activity=Took Vitamin, quantity=1, unit=count
+Headache | activity=Headache, quantity=1, unit=event
+Walked Moby
+```
+
+If a button is only a label, TapLog logs `label` and `value: 1`. If button values use columns not already listed, TapLog appends those columns automatically. `timestamp` is always included as the first column.
+
+The builder generates a plain Markdown tracker note that remains editable by the user.
+
+The settings tab is a simple launcher, builder, and order manager, not a full advanced schema editor. Plain Markdown tracker notes remain the source of truth for tracker config.
 
 Settings can also enable or disable TapLog ribbon actions. By default, TapLog adds shortcuts to open the TapLog index, open the dashboard, and open the Snack Tracker. The quick tracker ribbon target can be changed to another built-in tracker or a settings-built custom tracker. Ribbon actions are shortcuts; they do not replace tracker notes.
 

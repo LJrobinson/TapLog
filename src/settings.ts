@@ -202,7 +202,9 @@ export class TapLogSettingTab extends PluginSettingTab {
 	private renderSimpleCustomTrackerSection(containerEl: HTMLElement) {
 		let trackerName = "";
 		let trackerId = "";
-		let buttonLabels = "";
+		let columns = "";
+		let defaults = "";
+		let buttons = "";
 
 		new Setting(containerEl)
 			.setName("Create simple custom tracker")
@@ -231,12 +233,34 @@ export class TapLogSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Button labels")
-			.setDesc("One button label per line.")
+			.setName("Columns")
+			.setDesc("Optional. One column per line; timestamp is always added first.")
 			.addTextArea((text) => {
 				text
 					.onChange((value) => {
-						buttonLabels = value;
+						columns = value;
+					});
+				text.inputEl.rows = 4;
+			});
+
+		new Setting(containerEl)
+			.setName("Defaults")
+			.setDesc("Optional. One key=value pair per line.")
+			.addTextArea((text) => {
+				text
+					.onChange((value) => {
+						defaults = value;
+					});
+				text.inputEl.rows = 3;
+			});
+
+		new Setting(containerEl)
+			.setName("Buttons")
+			.setDesc("One button per line. Use label only, or label | key=value, key=value.")
+			.addTextArea((text) => {
+				text
+					.onChange((value) => {
+						buttons = value;
 					});
 				text.inputEl.rows = 4;
 			});
@@ -248,7 +272,7 @@ export class TapLogSettingTab extends PluginSettingTab {
 				button
 					.setButtonText("Create custom tracker")
 					.onClick(() => {
-						void this.createSimpleCustomTracker(trackerName, trackerId, buttonLabels);
+						void this.createSimpleCustomTracker(trackerName, trackerId, columns, defaults, buttons);
 					});
 			});
 	}
@@ -325,11 +349,13 @@ export class TapLogSettingTab extends PluginSettingTab {
 			});
 	}
 
-	private async createSimpleCustomTracker(name: string, id: string, buttonLabels: string) {
+	private async createSimpleCustomTracker(name: string, id: string, columns: string, defaults: string, buttons: string) {
 		const result = buildCustomTrackerTemplate({
 			name,
 			id,
-			buttonLabels
+			columns,
+			defaults,
+			buttons
 		});
 
 		if (!result.ok) {
