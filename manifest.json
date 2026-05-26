@@ -3,7 +3,7 @@
 	"name": "TapLog",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Configurable one-tap tracker notes with CSV logs and monthly summaries for Obsidian.",
+	"description": "Create configurable one-tap tracker notes with CSV logs and monthly summaries.",
 	"author": "LJ Robinson",
 	"isDesktopOnly": false
 }

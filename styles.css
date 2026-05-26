@@ -47,13 +47,20 @@
 	flex: 1 1 12rem;
 	flex-direction: column;
 	gap: 0.35rem;
-	min-width: 0;
+	min-width: min(100%, 12rem);
 	max-width: 22rem;
 }
 
 .taplog-button {
-	min-height: 2.75rem;
-	padding: 0.5rem 0.875rem;
+	display: inline-flex;
+	width: 100%;
+	min-height: 44px;
+	padding: 0.625rem 0.875rem;
+	align-items: center;
+	justify-content: center;
+	overflow-wrap: anywhere;
+	touch-action: manipulation;
+	white-space: normal;
 }
 
 .taplog-button-preview,
@@ -74,4 +81,15 @@
 	border-radius: 6px;
 	background: var(--background-secondary);
 	color: var(--text-normal);
+}
+
+@media (max-width: 600px) {
+	.taplog-button-row {
+		gap: 0.625rem;
+	}
+
+	.taplog-button-card {
+		flex-basis: 100%;
+		max-width: none;
+	}
 }

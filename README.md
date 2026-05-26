@@ -26,7 +26,7 @@ TapLog currently supports:
 16. Optional ribbon shortcuts for opening the TapLog index and one quick tracker.
 17. A Markdown dashboard note that renders buttons from multiple tracker notes.
 
-TapLog does not currently include a full custom wizard, charts, dashboards, sync, or a full inventory system.
+TapLog does not currently include a full custom wizard, charts, an analytics dashboard, sync, or a full inventory system.
 
 ## Current commands
 
@@ -218,6 +218,8 @@ Invalid trackers show a friendly Notice with the first setup problem. This is no
 10. Confirm the validation report opens under `TapLog/Summaries/YYYY-MM/`.
 11. Run **TapLog: Create monthly rollup summary**.
 12. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
+13. On a phone or narrow test window, confirm tracker buttons are easy to tap and long labels wrap without overflowing.
+14. Tap a button and confirm the Notice names the logged button and resolved CSV path.
 
 ## Development setup
 
@@ -254,6 +256,20 @@ npm run test
 ```
 
 For manual plugin testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
+
+## Release checklist
+
+Before publishing a TapLog release:
+
+1. Confirm `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`, `author`, and `isDesktopOnly`.
+2. Confirm the plugin description is short, ends with a period, and does not include the word "Obsidian".
+3. Confirm `package.json` and `manifest.json` use the same version and description.
+4. Confirm `versions.json` maps the released plugin version to the supported minimum Obsidian version when `minAppVersion` changes.
+5. Run `npm run build`, `npm run lint`, and `npm run test`.
+6. Confirm the release assets are present at the repo root: `main.js`, `manifest.json`, and `styles.css`.
+7. Create a GitHub release whose tag exactly matches the `manifest.json` version, without a leading `v`.
+8. Attach `main.js`, `manifest.json`, and `styles.css` as individual release assets.
+9. Install those release assets into `.obsidian/plugins/taplog/` in a separate test vault and smoke test desktop and mobile because `isDesktopOnly` is `false`.
 
 ## Roadmap
 

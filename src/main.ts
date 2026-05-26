@@ -1,6 +1,7 @@
 import { Notice, Plugin, TFile, type MarkdownPostProcessorContext } from "obsidian";
 import { appendCsvRow, buildOutputPath, getMergedButtonValues, valueToCsvText } from "./csv";
 import { createDashboardNote, resolveDashboardTracker } from "./dashboard";
+import { buildLogSuccessNotice } from "./logNotice";
 import { resolveQuickRibbonTrackerTarget } from "./ribbonActions";
 import { TapLogSettingTab, normalizeTapLogSettings, type TapLogSettings } from "./settings";
 import { createMonthlyRollupSummary, createMonthlySummaryForActiveTracker } from "./summaries";
@@ -34,7 +35,7 @@ export default class TapLogPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: "create-snack-tracker-test-note",
+			id: "create-snack-tracker",
 			// The requested command label intentionally includes the plugin name.
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
 			name: "TapLog: Create snack tracker",
@@ -271,8 +272,9 @@ export default class TapLogPlugin extends Plugin {
 
 	private async logButtonClick(config: TaplogConfig, button: TaplogButton) {
 		try {
-			await appendCsvRow(this.app.vault, config, button, new Date());
-			new Notice(`Logged: ${button.label}`);
+			const now = new Date();
+			await appendCsvRow(this.app.vault, config, button, now);
+			new Notice(buildLogSuccessNotice(config, button, now));
 		} catch (error) {
 			console.error("TapLog failed to write CSV row.", error);
 			new Notice(`TapLog could not write the log row: ${getErrorMessage(error)}`);
