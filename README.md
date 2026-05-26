@@ -46,7 +46,7 @@ The first build target is intentionally small:
 7. Auto-create folder, file, and CSV header when missing.
 8. Friendly visible error if the config is broken.
 
-No charts, dashboards, sync logic, complex settings UI, or par levels are part of this first implementation pass.
+No charts, dashboards, sync logic, complex settings UI, or full inventory system are part of this first implementation pass.
 
 ## Example tracker note
 
@@ -66,6 +66,14 @@ taplog:
     - quantity
     - unit
     - category
+
+  par_levels:
+    Mosh Bar:
+      par: 12
+      unit: bar
+    Beef Jerky:
+      par: 6
+      unit: bag
 
   buttons:
     - label: Ate Mosh Bar
@@ -147,7 +155,21 @@ Run **TapLog: Create monthly summary for active tracker** while viewing a tracke
 TapLog/Summaries/YYYY-MM/{tracker-id} Summary.md
 ```
 
-Every summary includes tracker id, month, source CSV path, and total event count. Snack summaries group item quantities when `item` and `quantity` columns exist. Cannabis summaries group event counts by `size` and `strain` when those columns exist. Par level suggestions are not implemented yet.
+Every summary includes tracker id, month, source CSV path, and total event count. Snack summaries group item quantities when `item` and `quantity` columns exist. Cannabis summaries group event counts by `size` and `strain` when those columns exist.
+
+Snack trackers can optionally define `par_levels` in frontmatter. When `par_levels` are present, the monthly summary adds simple restock guidance:
+
+```yaml
+par_levels:
+  Mosh Bar:
+    par: 12
+    unit: bar
+  Beef Jerky:
+    par: 6
+    unit: bag
+```
+
+The suggested restock amount is intentionally simple: if monthly usage is greater than par, use monthly usage; otherwise use par. TapLog does not provide full inventory management yet.
 
 ## Build roadmap
 
@@ -160,7 +182,7 @@ The roadmap from `TapLog Idea.md` is:
 5. Friendly visible config validation errors.
 6. Additional tracker templates.
 7. More summary types.
-8. Par level suggestions.
+8. More par level tools.
 9. Persistent current values.
 10. Friendly setup UI.
 
@@ -188,4 +210,4 @@ For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsid
 
 ## Current status
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, show visible setup errors, create snack and cannabis tracker notes, append clicked button rows to monthly CSV files, and generate simple monthly summaries from the active tracker. Par levels and friendly setup UI are not implemented yet.
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, show visible setup errors, create snack and cannabis tracker notes, append clicked button rows to monthly CSV files, and generate simple monthly summaries from the active tracker. Snack summaries can include simple par/restock guidance when `par_levels` are configured. Friendly setup UI is not implemented yet.

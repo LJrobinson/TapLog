@@ -12,7 +12,13 @@ interface TaplogConfig {
 	outputFilePattern: string;
 	columns: string[];
 	defaults: Record<string, unknown>;
+	parLevels: Record<string, ParLevel>;
 	buttons: TaplogButton[];
+}
+
+interface ParLevel {
+	par: number;
+	unit: string;
 }
 
 interface TrackerTemplate {
@@ -221,6 +227,13 @@ taplog:
     - quantity
     - unit
     - category
+  par_levels:
+    Mosh Bar:
+      par: 12
+      unit: bar
+    Beef Jerky:
+      par: 6
+      unit: bag
   buttons:
     - label: Ate Mosh Bar
       values:
@@ -361,6 +374,7 @@ function validateTaplogConfig(source: string, taplogConfig: unknown): TaplogVali
 			message: "TapLog defaults must be a config object."
 		};
 	}
+	const parLevels = parseParLevels(taplogConfig["par_levels"]);
 
 	const blockId = parseTaplogBlockId(source);
 	if (!blockId) {
@@ -426,9 +440,39 @@ function validateTaplogConfig(source: string, taplogConfig: unknown): TaplogVali
 			outputFilePattern: rawOutputFilePattern.trim(),
 			columns,
 			defaults: rawDefaults ?? {},
+			parLevels,
 			buttons
 		}
 	};
+}
+
+function parseParLevels(value: unknown): Record<string, ParLevel> {
+	if (!isRecord(value)) {
+		return {};
+	}
+
+	const parLevels: Record<string, ParLevel> = {};
+
+	for (const [name, rawParLevel] of Object.entries(value)) {
+		if (!isRecord(rawParLevel)) {
+			continue;
+		}
+
+		const rawPar = rawParLevel["par"];
+		const rawUnit = rawParLevel["unit"];
+		const par = typeof rawPar === "number" ? rawPar : Number.parseFloat(typeof rawPar === "string" ? rawPar : "");
+
+		if (!Number.isFinite(par) || par < 0 || typeof rawUnit !== "string" || rawUnit.trim().length === 0) {
+			continue;
+		}
+
+		parLevels[name] = {
+			par,
+			unit: rawUnit.trim()
+		};
+	}
+
+	return parLevels;
 }
 
 function validateTaplogFrontmatterConfig(taplogConfig: unknown): TaplogValidationResult {
@@ -677,7 +721,9 @@ function buildMonthlySummary(config: TaplogConfig, csvPath: string, csvContent: 
 	];
 
 	if (csvData.headers.includes("item") && csvData.headers.includes("quantity")) {
-		appendQuantitySummary(lines, "Item usage totals", groupQuantityByColumn(csvData.rows, "item", "quantity"));
+		const itemTotals = groupQuantityByColumn(csvData.rows, "item", "quantity");
+		appendQuantitySummary(lines, "Item usage totals", itemTotals);
+		appendParLevelSummary(lines, itemTotals, config.parLevels);
 	}
 
 	if (csvData.headers.includes("size")) {
@@ -689,6 +735,26 @@ function buildMonthlySummary(config: TaplogConfig, csvPath: string, csvContent: 
 	}
 
 	return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function appendParLevelSummary(lines: string[], itemTotals: Map<string, number>, parLevels: Record<string, ParLevel>) {
+	const parEntries = Object.entries(parLevels).sort(([left], [right]) => left.localeCompare(right));
+	if (parEntries.length === 0) {
+		return;
+	}
+
+	lines.push("## Par level guidance", "");
+
+	for (const [item, parLevel] of parEntries) {
+		const used = itemTotals.get(item) ?? 0;
+		const suggestedRestock = Math.max(used, parLevel.par);
+		lines.push(`### ${item}`);
+		lines.push("");
+		lines.push(`- Used: ${formatSummaryNumber(used)} ${parLevel.unit}`);
+		lines.push(`- Par: ${formatSummaryNumber(parLevel.par)} ${parLevel.unit}`);
+		lines.push(`- Suggested restock: ${formatSummaryNumber(suggestedRestock)} ${parLevel.unit}`);
+		lines.push("");
+	}
 }
 
 function parseCsvData(content: string): { headers: string[]; rows: Array<Record<string, string>> } {
