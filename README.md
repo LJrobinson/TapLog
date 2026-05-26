@@ -1,66 +1,236 @@
 # TapLog
 
-TapLog is a configurable one-tap tracker for Obsidian. A tracker is a normal Markdown note with readable `taplog` frontmatter and a `taplog` code block that renders buttons in Reading View.
+TapLog is a one-tap tracker for Obsidian.
 
-TapLog is useful for small repeated logs: snacks, coffee, symptoms, habits, supplies, cannabis, chores, or any simple timestamped event you want in plain files.
+Use it to track snacks, cannabis, habits, symptoms, supplies, chores, inventory, or any simple event you want in plain files. Each tracker is a normal Markdown note. The tracker note contains readable `taplog` frontmatter, and a `taplog` code block renders the buttons in Reading View.
 
-## What works now
+When you tap a button, TapLog appends a timestamped row to a monthly CSV file under `TapLog/Logs/YYYY-MM/`.
 
-TapLog currently supports:
+## Quick start
 
-1. `taplog` frontmatter config in a Markdown tracker note.
-2. A `taplog` code block that renders tracker buttons.
-3. CSV append logging to monthly files.
-4. Auto-created folders, CSV files, and CSV headers.
-5. Resolved output path display.
-6. Button previews using merged `defaults` plus button `values`.
-7. Current values display when `taplog.defaults` exists.
-8. Friendly visible setup errors for broken config.
-9. Tracker template commands for snack, cannabis, basic, and custom trackers.
-10. Active-tracker monthly summaries.
-11. Snack par/restock guidance when `taplog.par_levels` exists.
-12. Current-month rollup summaries across all TapLog CSVs.
-13. A static Markdown tracker index note.
-14. Active-tracker validation reports.
-15. A small TapLog settings tab for creating built-in trackers, creating simple custom trackers, and ordering trackers.
-16. Optional ribbon shortcuts for opening the TapLog index and one quick tracker.
-17. A Markdown dashboard note that renders buttons from multiple tracker notes.
+1. Install TapLog and enable it from **Settings -> Community plugins**.
+2. Open the command palette.
+3. Run **TapLog: Create snack tracker**.
+4. Open `TapLog/Trackers/Snack Tracker.md`.
+5. Switch the note to Reading View.
+6. Tap **Ate Mosh Bar** or **Beef Jerky**.
+7. Open `TapLog/Logs/YYYY-MM/snacks.csv` to see the logged row.
 
-TapLog does not currently include a full custom wizard, charts, an analytics dashboard, sync, or a full inventory system.
+TapLog creates missing folders, CSV files, and CSV headers automatically.
 
-## Current commands
+## How trackers work
 
-- **TapLog: Create snack tracker**
-- **TapLog: Create cannabis tracker**
-- **TapLog: Create basic tracker template**
-- **TapLog: Create custom tracker template**
-- **TapLog: Create tracker index**
-- **TapLog: Create dashboard**
-- **TapLog: Create monthly summary for active tracker**
-- **TapLog: Validate active tracker**
-- **TapLog: Create monthly rollup summary**
+A tracker note has two important parts.
 
-## Settings tab
+The editable config lives in the `taplog` frontmatter at the top of the note:
 
-Open TapLog's settings tab in Obsidian to create built-in tracker templates, create a configurable custom tracker, and set tracker order. Tracker order affects newly generated `TapLog/TapLog Index.md` notes and the section order in **TapLog: Create monthly rollup summary**.
-
-The custom tracker builder asks for tracker name, optional tracker id, columns, defaults, and buttons. Columns are entered one per line. Defaults are entered as `key=value` lines. Buttons can be simple labels, or labels with values:
-
-```text
-Took Vitamin | activity=Took Vitamin, quantity=1, unit=count
-Headache | activity=Headache, quantity=1, unit=event
-Walked Moby
+```yaml
+---
+taplog:
+  id: snacks
+  output_type: csv
+  output_folder: TapLog/Logs
+  output_file_pattern: YYYY-MM/snacks.csv
+  columns:
+    - timestamp
+    - item
+    - quantity
+    - unit
+    - category
+  buttons:
+    - label: Ate Mosh Bar
+      values:
+        item: Mosh Bar
+        quantity: 1
+        unit: bar
+        category: snack
+---
 ```
 
-If a button is only a label, TapLog logs `label` and `value: 1`. If button values use columns not already listed, TapLog appends those columns automatically. `timestamp` is always included as the first column.
+The rendered buttons come from a `taplog` code block in the note body:
 
-The builder generates a plain Markdown tracker note that remains editable by the user.
+````markdown
+```taplog
+id: snacks
+```
+````
 
-The settings tab is a simple launcher, builder, and order manager, not a full advanced schema editor. Plain Markdown tracker notes remain the source of truth for tracker config.
+The code block `id` must match `taplog.id`.
 
-Settings can also enable or disable TapLog ribbon actions. By default, TapLog adds shortcuts to open the TapLog index, open the dashboard, and open the Snack Tracker. The quick tracker ribbon target can be changed to another built-in tracker or a settings-built custom tracker. Ribbon actions are shortcuts; they do not replace tracker notes.
+## Edit a tracker
 
-## Current vault output
+Tracker notes are the source of truth. To change buttons, columns, defaults, or output paths:
+
+1. Open the tracker note, such as `TapLog/Trackers/Snack Tracker.md`.
+2. Switch to Source mode or Editing View.
+3. Edit the `taplog` section at the top of the note.
+4. Save the note.
+5. Switch back to Reading View.
+
+The rendered buttons use the updated config. Existing CSV logs are not deleted when you edit a tracker note.
+
+## Common edits
+
+### Change a button label
+
+Change the `label` text:
+
+```yaml
+buttons:
+  - label: Ate Protein Bar
+    values:
+      item: Mosh Bar
+      quantity: 1
+      unit: bar
+      category: snack
+```
+
+The label changes the button text. The `values` decide what gets written to the CSV.
+
+### Change what a button logs
+
+Edit the values under the button:
+
+```yaml
+buttons:
+  - label: Ate Protein Bar
+    values:
+      item: Protein Bar
+      quantity: 1
+      unit: bar
+      category: snack
+```
+
+Future taps use the new values. Existing CSV rows stay as they are.
+
+### Add a new button
+
+Copy an existing button and change the label and values:
+
+```yaml
+buttons:
+  - label: Red Bull
+    values:
+      item: Red Bull
+      quantity: 1
+      unit: can
+      category: drink
+```
+
+Make sure every value key you want to save also appears in `columns`.
+
+### Remove a button
+
+Delete the whole button block:
+
+```yaml
+  - label: Beef Jerky
+    values:
+      item: Beef Jerky
+      quantity: 1
+      unit: bag
+      category: snack
+```
+
+Removing a button does not remove old CSV rows.
+
+### Change a current value
+
+Some trackers use `defaults`. For example, the Cannabis Tracker uses defaults for `strain` and `method`.
+
+```yaml
+defaults:
+  strain: Neon Moon - Gunpowder Haze
+  method: dab
+```
+
+Change the value in the tracker note:
+
+```yaml
+defaults:
+  strain: New Strain Name
+  method: dab
+```
+
+Buttons merge `defaults` with the button's own `values`. In this example, each dab button logs the current strain plus its own size.
+
+### Add a column
+
+Add the column name to `columns`:
+
+```yaml
+columns:
+  - timestamp
+  - item
+  - quantity
+  - unit
+  - category
+  - note
+```
+
+Then add values for that column where needed:
+
+```yaml
+buttons:
+  - label: Ate Mosh Bar
+    values:
+      item: Mosh Bar
+      quantity: 1
+      unit: bar
+      category: snack
+      note: afternoon
+```
+
+New CSV files use the updated columns. Existing CSV files are not rewritten automatically. If the current month's CSV already exists, update its header manually or change `output_file_pattern` before logging with the new columns.
+
+### Change the output file
+
+Change `output_file_pattern`:
+
+```yaml
+output_file_pattern: YYYY-MM/snacks.csv
+```
+
+For example:
+
+```yaml
+output_file_pattern: YYYY-MM/snack-log.csv
+```
+
+Future taps write to the new file. Old CSV files stay where they are.
+
+### Change the tracker id
+
+Only change the tracker id if you also update the matching code block and any dashboard blocks that point to it.
+
+```yaml
+taplog:
+  id: snacks
+```
+
+must match:
+
+````markdown
+```taplog
+id: snacks
+```
+````
+
+For built-in trackers, changing the output file name is usually safer than changing the tracker id. Generated dashboard blocks and settings order use tracker ids.
+
+### Fix a generated custom tracker
+
+Open the generated custom tracker note in `TapLog/Trackers/`, switch to Source mode or Editing View, and edit the `taplog` frontmatter directly.
+
+If you only need to fix labels, buttons, columns, defaults, or output file names, edit the note. If you want a new custom tracker id to appear in settings and generated dashboard/index content, create a new custom tracker from settings.
+
+### Delete or archive a tracker
+
+Move, rename, archive, or delete the tracker note like any other Markdown file. CSV logs under `TapLog/Logs/` are separate files and are not deleted when you remove a tracker note.
+
+If the old tracker appears in `TapLog/TapLog Index.md` or `TapLog/Dashboard.md`, edit those Markdown notes or regenerate them as described below.
+
+## Where things are stored
 
 Tracker notes:
 
@@ -74,29 +244,99 @@ Monthly CSV logs:
 TapLog/Logs/YYYY-MM/*.csv
 ```
 
-Monthly summary notes:
+Monthly summaries and validation reports:
 
 ```text
-TapLog/Summaries/YYYY-MM/*.md
+TapLog/Summaries/YYYY-MM/
 ```
 
-Examples:
+Index note:
 
 ```text
 TapLog/TapLog Index.md
-TapLog/Dashboard.md
-TapLog/Trackers/Snack Tracker.md
-TapLog/Logs/YYYY-MM/snacks.csv
-TapLog/Summaries/YYYY-MM/snacks Summary.md
-TapLog/Summaries/YYYY-MM/snacks Validation.md
-TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 ```
 
-Run **TapLog: Create tracker index** to create or open `TapLog/TapLog Index.md`. It is a static Markdown home note with links to the built-in trackers, current vault output paths, a short command reference, and a simple usage flow. It is not a live dashboard.
+Dashboard note:
 
-Run **TapLog: Create dashboard** to create or open `TapLog/Dashboard.md`. The dashboard is a Markdown control panel that renders TapLog buttons from multiple tracker notes using `source: tracker` blocks. Tracker notes remain the source of truth for config, and dashboard button clicks write to each tracker's normal monthly CSV. The generated dashboard respects tracker order.
+```text
+TapLog/Dashboard.md
+```
 
-Example dashboard block:
+Example output:
+
+```text
+TapLog/Trackers/Snack Tracker.md
+TapLog/Logs/2026-05/snacks.csv
+TapLog/Summaries/2026-05/snacks Summary.md
+TapLog/Summaries/2026-05/snacks Validation.md
+TapLog/Summaries/2026-05/Monthly Rollup.md
+```
+
+## Commands
+
+- **TapLog: Create snack tracker**
+- **TapLog: Create cannabis tracker**
+- **TapLog: Create basic tracker template**
+- **TapLog: Create custom tracker template**
+- **TapLog: Create tracker index**
+- **TapLog: Create dashboard**
+- **TapLog: Create monthly summary for active tracker**
+- **TapLog: Validate active tracker**
+- **TapLog: Create monthly rollup summary**
+
+The tracker commands create a tracker note if it does not exist, then open it. If the note already exists, TapLog opens it.
+
+## Settings
+
+TapLog settings are helpers, not the only way to manage trackers.
+
+Use settings to:
+
+- Create built-in tracker templates.
+- Create a simple custom tracker.
+- Change tracker order.
+- Enable or disable ribbon shortcuts.
+- Choose the quick tracker opened by the ribbon shortcut.
+
+The custom tracker builder asks for a tracker name, optional tracker id, columns, defaults, and buttons.
+
+Columns are one per line:
+
+```text
+activity
+quantity
+unit
+category
+```
+
+Defaults are `key=value` lines:
+
+```text
+category=health
+unit=count
+```
+
+Buttons are one per line. Use a plain label, or a label with values:
+
+```text
+Took Vitamin | activity=Took Vitamin, quantity=1, unit=count
+Headache | activity=Headache, quantity=1, unit=event
+Walked
+```
+
+If a button is only a label, TapLog logs `label` and `value: 1`. `timestamp` is always included as the first column.
+
+After a tracker is created, edit it by opening the tracker note and changing the `taplog` frontmatter.
+
+## Index and dashboard
+
+Run **TapLog: Create tracker index** to create or open `TapLog/TapLog Index.md`.
+
+The index is a normal Markdown note with links to trackers, output paths, and command names. It is not a live database view.
+
+Run **TapLog: Create dashboard** to create or open `TapLog/Dashboard.md`.
+
+The dashboard is a normal Markdown note that renders buttons from multiple tracker notes:
 
 ````markdown
 ```taplog
@@ -105,178 +345,85 @@ source: tracker
 ```
 ````
 
-The dashboard is not a chart dashboard and does not include live analytics widgets or a drag-and-drop builder.
+Dashboard blocks use the tracker notes as the source of truth. Tapping a dashboard button writes to that tracker's normal monthly CSV.
 
-## Example tracker note
+The dashboard is not an analytics dashboard. It does not include charts, live widgets, or drag-and-drop layout.
 
-````markdown
----
-taplog:
-  id: snacks
-  output_type: csv
-  output_folder: TapLog/Logs
-  output_file_pattern: YYYY-MM/snacks.csv
+If tracker order or tracker list changes, the existing index/dashboard notes are not overwritten automatically. Edit them by hand, or delete/rename the existing index/dashboard note and run the create command again.
 
-  columns:
-    - timestamp
-    - item
-    - quantity
-    - unit
-    - category
+## Summaries and validation
 
-  par_levels:
-    Mosh Bar:
-      par: 12
-      unit: bar
-    Beef Jerky:
-      par: 6
-      unit: bag
-
-  buttons:
-    - label: Ate Mosh Bar
-      values:
-        item: Mosh Bar
-        quantity: 1
-        unit: bar
-        category: snack
-
-    - label: Beef Jerky
-      values:
-        item: Beef Jerky
-        quantity: 1
-        unit: bag
-        category: snack
----
-
-# Snack Tracker
-
-```taplog
-id: snacks
-```
-````
-
-The rendered block shows buttons, a resolved CSV destination, and a short preview for each button. If the tracker has `defaults`, TapLog also shows them as current values above the buttons.
-
-## CSV logging
-
-Clicking **Ate Mosh Bar** appends to the current month CSV:
-
-```text
-TapLog/Logs/YYYY-MM/snacks.csv
-```
-
-Rows use the tracker columns:
-
-```csv
-timestamp,item,quantity,unit,category
-2026-05-18 22:46,Mosh Bar,1,bar,snack
-```
-
-## Monthly summaries
-
-Run **TapLog: Create monthly summary for active tracker** while viewing a tracker note. TapLog reads that tracker's current month CSV and regenerates:
+Run **TapLog: Create monthly summary for active tracker** while viewing a tracker note. TapLog reads that tracker's current month CSV and creates or updates:
 
 ```text
 TapLog/Summaries/YYYY-MM/{tracker-id} Summary.md
 ```
 
-Every active-tracker summary includes tracker id, month, source CSV path, and total event count. Snack summaries group item quantities and can include simple par/restock guidance when `taplog.par_levels` exists. Cannabis summaries group event counts by `size` and `strain` when those columns exist.
+Snack summaries can include item totals and simple par/restock guidance when `taplog.par_levels` exists. Cannabis summaries group usage by `size` and `strain` when those columns exist.
 
-Run **TapLog: Create monthly rollup summary** to summarize all CSV files in:
+Run **TapLog: Create monthly rollup summary** to summarize the current month's CSV files under:
 
 ```text
 TapLog/Logs/YYYY-MM/
 ```
 
-The rollup regenerates:
+The rollup creates or updates:
 
 ```text
 TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 ```
 
-It includes month, source folder, tracker count, total event count, and one small section per tracker CSV.
-
-Run **TapLog: Validate active tracker** while viewing a tracker note to check the `taplog` config. Valid trackers generate a small report at:
+Run **TapLog: Validate active tracker** while viewing a tracker note to create a validation report:
 
 ```text
 TapLog/Summaries/YYYY-MM/{tracker-id} Validation.md
 ```
 
-Invalid trackers show a friendly Notice with the first setup problem. This is not a live validation panel.
+If a tracker is invalid, TapLog shows a setup problem Notice with the first issue it found.
 
-## Manual test checklist
+## Troubleshooting
 
-1. Run each tracker command: snack, cannabis, basic, and custom.
-2. Run **TapLog: Create tracker index** and confirm `TapLog/TapLog Index.md` opens.
-3. Run **TapLog: Create dashboard** and confirm `TapLog/Dashboard.md` opens.
-4. Confirm each tracker opens and renders buttons in Reading View.
-5. Click one button in each tracker.
-6. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
-7. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
-8. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
-9. Run **TapLog: Validate active tracker** from a tracker note.
-10. Confirm the validation report opens under `TapLog/Summaries/YYYY-MM/`.
-11. Run **TapLog: Create monthly rollup summary**.
-12. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
-13. On a phone or narrow test window, confirm tracker buttons are easy to tap and long labels wrap without overflowing.
-14. Tap a button and confirm the Notice names the logged button and resolved CSV path.
+### Buttons do not show
 
-## Development setup
+- Switch the note to Reading View.
+- Confirm the code block language is `taplog`.
+- Confirm the code block has an `id`.
+- Confirm the code block `id` matches `taplog.id` in the frontmatter.
+- Confirm the frontmatter key is lowercase `taplog`.
+- Look for a visible TapLog setup problem in the note.
 
-Install dependencies:
+### CSV did not update
 
-```bash
-npm install
-```
+- TapLog shows a Notice after a successful tap. Check the path in that Notice.
+- Confirm the tracker uses `output_type: csv`.
+- Confirm `output_folder` and `output_file_pattern` are set.
+- Check whether a normal file already exists where TapLog needs to create a folder.
+- Open the current month folder under `TapLog/Logs/YYYY-MM/`.
 
-Run the development build in watch mode:
+### Wrong value was logged
 
-```bash
-npm run dev
-```
+Edit the tracker note's button `values` or `defaults`. Future taps use the updated config. If an old CSV row is wrong, edit the CSV row directly.
 
-Create a production build:
+### I made a bad custom tracker
 
-```bash
-npm run build
-```
+Open the generated tracker note under `TapLog/Trackers/` and edit the `taplog` frontmatter. If the tracker is easier to start over, create a new custom tracker from settings and archive the old tracker note.
 
-Run automated helper tests:
+### I changed the note but buttons did not refresh
 
-```bash
-npm run test
-```
+Switch out of Reading View and back, or close and reopen the note. Obsidian may need a moment to refresh frontmatter metadata.
 
-Before pushing changes, run the same validation used by CI:
+### Mobile buttons are hard to tap
 
-```bash
-npm run build
-npm run lint
-npm run test
-```
+Use shorter button labels where practical. If a long label wraps poorly, edit the button label in the tracker note. The CSV value can stay detailed in `values`.
 
-For manual plugin testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsidian/plugins/taplog/` in a test vault, then reload Obsidian and enable TapLog from **Settings -> Community plugins**.
+### A setup problem appears
 
-## Release checklist
+Read the message shown in the TapLog block. It usually points to the missing or mismatched part of the config. You can also run **TapLog: Validate active tracker** from the command palette while viewing the tracker note.
 
-Before publishing a TapLog release:
+## Known limitations
 
-1. Confirm `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`, `author`, and `isDesktopOnly`.
-2. Confirm the plugin description is short, ends with a period, and does not include the word "Obsidian".
-3. Confirm `package.json` and `manifest.json` use the same version and description.
-4. Confirm `versions.json` maps the released plugin version to the supported minimum Obsidian version when `minAppVersion` changes.
-5. Run `npm run build`, `npm run lint`, and `npm run test`.
-6. Confirm the release assets are present at the repo root: `main.js`, `manifest.json`, and `styles.css`.
-7. Create a GitHub release whose tag exactly matches the `manifest.json` version, without a leading `v`.
-8. Attach `main.js`, `manifest.json`, and `styles.css` as individual release assets.
-9. Install those release assets into `.obsidian/plugins/taplog/` in a separate test vault and smoke test desktop and mobile because `isDesktopOnly` is `false`.
-
-## Roadmap
-
-From `TapLog Idea.md`, likely next steps are:
-
-1. More tracker template refinement.
-2. More summary types.
-3. More par level tools.
-4. Persistent current values.
-5. Friendly setup UI.
+- Persistent current values are not implemented yet. Current values come from `taplog.defaults`, and you edit them in the tracker note.
+- Editing existing trackers from a settings form is not implemented yet. Tracker notes are edited as Markdown today.
+- Existing index and dashboard notes are not automatically regenerated when tracker order or tracker list changes.
+- Validation is currently a Notice plus an optional Markdown report, not a live settings panel.
+- TapLog does not include charts, sync, Dataview integration, Bases integration, external services, or a full inventory system.
