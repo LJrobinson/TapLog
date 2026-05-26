@@ -35,6 +35,7 @@ TapLog currently includes command palette starters for:
 - **TapLog: Create basic tracker template**
 - **TapLog: Create custom tracker template**
 - **TapLog: Create monthly summary for active tracker**
+- **TapLog: Create monthly rollup summary**
 
 ## MVP target
 
@@ -200,6 +201,20 @@ par_levels:
 
 The suggested restock amount is intentionally simple: if monthly usage is greater than par, use monthly usage; otherwise use par. TapLog does not provide full inventory management yet.
 
+Run **TapLog: Create monthly rollup summary** to summarize all CSV files in the current month log folder:
+
+```text
+TapLog/Logs/YYYY-MM/
+```
+
+The rollup is regenerated at:
+
+```text
+TapLog/Summaries/YYYY-MM/Monthly Rollup.md
+```
+
+It includes month, source folder, tracker count, total event count, and one small section per tracker CSV. It is a plain Markdown review note, not a dashboard or chart view.
+
 ## Build roadmap
 
 The roadmap from `TapLog Idea.md` is:
@@ -240,4 +255,4 @@ For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsid
 
 ## Current status
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, guard buttons against accidental rapid duplicate clicks, show visible setup errors, create snack, cannabis, basic, and custom tracker notes, append clicked button rows to monthly CSV files, and generate simple monthly summaries from the active tracker. Snack summaries can include simple par/restock guidance when `par_levels` are configured. A full setup UI, settings UI, charts, and dashboards are not implemented yet.
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, guard buttons against accidental rapid duplicate clicks, show visible setup errors, create snack, cannabis, basic, and custom tracker notes, append clicked button rows to monthly CSV files, generate simple monthly summaries from the active tracker, and generate a current-month rollup across tracker CSVs. Snack summaries can include simple par/restock guidance when `par_levels` are configured. A full setup UI, settings UI, charts, and dashboards are not implemented yet.

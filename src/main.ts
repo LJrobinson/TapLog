@@ -28,6 +28,14 @@ interface TrackerTemplate {
 	content: string;
 }
 
+interface RollupTrackerSummary {
+	id: string;
+	path: string;
+	eventCount: number;
+	itemCounts: Map<string, number>;
+	sizeCounts: Map<string, number>;
+}
+
 type TaplogValidationResult =
 	| {
 		ok: true;
@@ -91,6 +99,16 @@ export default class TapLogPlugin extends Plugin {
 			name: "TapLog: Create monthly summary for active tracker",
 			callback: () => {
 				void this.createMonthlySummaryForActiveTracker();
+			}
+		});
+
+		this.addCommand({
+			id: "create-monthly-rollup-summary",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create monthly rollup summary",
+			callback: () => {
+				void this.createMonthlyRollupSummary();
 			}
 		});
 	}
@@ -267,6 +285,69 @@ export default class TapLogPlugin extends Plugin {
 		} catch (error) {
 			console.error("TapLog failed to create monthly summary.", error);
 			new Notice(`TapLog could not create the monthly summary: ${getErrorMessage(error)}`);
+		}
+	}
+
+	private async createMonthlyRollupSummary() {
+		try {
+			const now = new Date();
+			const yearMonth = formatYearMonth(now);
+			const logFolderPath = normalizePath(`TapLog/Logs/${yearMonth}`);
+			const logFolder = this.app.vault.getAbstractFileByPath(logFolderPath);
+
+			if (!logFolder) {
+				new Notice(`TapLog has no logs for the current month: ${logFolderPath}`);
+				return;
+			}
+
+			if (!(logFolder instanceof TFolder)) {
+				new Notice(`TapLog could not read monthly logs because "${logFolderPath}" is not a folder.`);
+				return;
+			}
+
+			const csvFiles = logFolder.children
+				.filter((file): file is TFile => file instanceof TFile && file.extension === "csv")
+				.sort((left, right) => left.basename.localeCompare(right.basename));
+
+			if (csvFiles.length === 0) {
+				new Notice(`TapLog has no CSV files for the current month: ${logFolderPath}`);
+				return;
+			}
+
+			const trackerSummaries: RollupTrackerSummary[] = [];
+			for (const csvFile of csvFiles) {
+				const csvContent = await this.app.vault.read(csvFile);
+				const csvData = parseCsvData(csvContent);
+				trackerSummaries.push({
+					id: csvFile.basename,
+					path: csvFile.path,
+					eventCount: csvData.rows.length,
+					itemCounts: csvData.headers.includes("item") ? groupCountByColumn(csvData.rows, "item") : new Map<string, number>(),
+					sizeCounts: csvData.headers.includes("size") ? groupCountByColumn(csvData.rows, "size") : new Map<string, number>()
+				});
+			}
+
+			const rollupPath = normalizePath(`TapLog/Summaries/${yearMonth}/Monthly Rollup.md`);
+			const rollupContent = buildMonthlyRollupSummary(yearMonth, logFolderPath, trackerSummaries);
+			await ensureParentFolders(this.app.vault, rollupPath);
+
+			const existingRollupFile = this.app.vault.getAbstractFileByPath(rollupPath);
+			let rollupFile: TFile;
+
+			if (!existingRollupFile) {
+				rollupFile = await this.app.vault.create(rollupPath, rollupContent);
+			} else if (existingRollupFile instanceof TFile) {
+				await this.app.vault.modify(existingRollupFile, rollupContent);
+				rollupFile = existingRollupFile;
+			} else {
+				throw new Error(`"${rollupPath}" already exists but is not a rollup note.`);
+			}
+
+			await this.app.workspace.getLeaf(false).openFile(rollupFile);
+			new Notice(`Created monthly rollup for ${yearMonth}.`);
+		} catch (error) {
+			console.error("TapLog failed to create monthly rollup.", error);
+			new Notice(`TapLog could not create the monthly rollup: ${getErrorMessage(error)}`);
 		}
 	}
 }
@@ -883,6 +964,44 @@ function buildMonthlySummary(config: TaplogConfig, csvPath: string, csvContent: 
 	}
 
 	return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function buildMonthlyRollupSummary(yearMonth: string, logFolderPath: string, summaries: RollupTrackerSummary[]): string {
+	const totalEventCount = summaries.reduce((total, summary) => total + summary.eventCount, 0);
+	const lines = [
+		`# Monthly Rollup - ${yearMonth}`,
+		"",
+		`Month: ${yearMonth}`,
+		`Source folder: \`${logFolderPath}\``,
+		`Tracker count: ${summaries.length}`,
+		`Total events: ${totalEventCount}`,
+		""
+	];
+
+	for (const summary of summaries) {
+		lines.push(`## ${summary.id}`, "");
+		lines.push(`Tracker: ${summary.id}`);
+		lines.push(`Source CSV: \`${summary.path}\``);
+		lines.push(`Event count: ${summary.eventCount}`);
+		lines.push("");
+
+		appendOptionalRollupCounts(lines, "Top items", summary.itemCounts);
+		appendOptionalRollupCounts(lines, "Usage by size", summary.sizeCounts);
+	}
+
+	return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function appendOptionalRollupCounts(lines: string[], heading: string, counts: Map<string, number>) {
+	if (counts.size === 0) {
+		return;
+	}
+
+	lines.push(`### ${heading}`, "");
+	for (const [label, count] of sortedMapEntries(counts)) {
+		lines.push(`- ${label}: ${count}`);
+	}
+	lines.push("");
 }
 
 function appendParLevelSummary(lines: string[], itemTotals: Map<string, number>, parLevels: Record<string, ParLevel>) {
