@@ -1,11 +1,16 @@
 import { Notice, TFile, normalizePath, type App } from "obsidian";
 import { ensureParentFolders } from "./csv";
+import { normalizeCustomTrackers, type CustomTrackerDefinition } from "./customTracker";
 import { normalizeTrackerOrder, orderTrackerItems } from "./trackerOrder";
 import { BUILT_IN_TRACKER_IDS, BUILT_IN_TRACKER_TEMPLATES } from "./trackerTemplates";
 
 export const TRACKER_INDEX_PATH = "TapLog/TapLog Index.md";
 
-export async function createTrackerIndexNote(app: App, trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS) {
+export async function createTrackerIndexNote(
+	app: App,
+	trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS,
+	customTrackers: readonly CustomTrackerDefinition[] = []
+) {
 	const indexPath = normalizePath(TRACKER_INDEX_PATH);
 
 	try {
@@ -16,7 +21,7 @@ export async function createTrackerIndexNote(app: App, trackerOrder: readonly st
 			throw new Error(`"${indexPath}" already exists but is not a note.`);
 		}
 
-		const indexFile = existingFile ?? await app.vault.create(indexPath, buildTrackerIndexContent(trackerOrder));
+		const indexFile = existingFile ?? await app.vault.create(indexPath, buildTrackerIndexContent(trackerOrder, customTrackers));
 		await app.workspace.getLeaf(false).openFile(indexFile);
 
 		if (existingFile) {
@@ -30,10 +35,15 @@ export async function createTrackerIndexNote(app: App, trackerOrder: readonly st
 	}
 }
 
-export function buildTrackerIndexContent(trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS): string {
-	const normalizedOrder = normalizeTrackerOrder(trackerOrder, BUILT_IN_TRACKER_IDS);
-	const trackerLinks = orderTrackerItems(BUILT_IN_TRACKER_TEMPLATES, (template) => template.taplogId, normalizedOrder)
-		.map((template) => `- [[${template.path.replace(/\.md$/, "")}|${template.name}]]`)
+export function buildTrackerIndexContent(
+	trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS,
+	customTrackers: readonly CustomTrackerDefinition[] = []
+): string {
+	const trackerLinks = getTrackerIndexLinks(customTrackers);
+	const trackerIds = trackerLinks.map((tracker) => tracker.id);
+	const normalizedOrder = normalizeTrackerOrder(trackerOrder, trackerIds);
+	const orderedTrackerLinks = orderTrackerItems(trackerLinks, (tracker) => tracker.id, normalizedOrder)
+		.map((tracker) => `- [[${tracker.path.replace(/\.md$/, "")}|${tracker.name}]]`)
 		.join("\n");
 
 	return `# TapLog Index
@@ -42,7 +52,7 @@ Use this note as a simple home base for TapLog trackers, logs, summaries, and co
 
 ## Trackers
 
-${trackerLinks}
+${orderedTrackerLinks}
 
 If a tracker note does not exist yet, run its create command from the command palette.
 
@@ -71,6 +81,24 @@ If a tracker note does not exist yet, run its create command from the command pa
 4. Run the monthly summary for the active tracker.
 5. Run the monthly rollup summary.
 `;
+}
+
+function getTrackerIndexLinks(customTrackers: readonly CustomTrackerDefinition[]) {
+	const trackerLinks = BUILT_IN_TRACKER_TEMPLATES.map((template) => ({
+		id: template.taplogId,
+		name: template.name,
+		path: template.path
+	}));
+
+	for (const customTracker of normalizeCustomTrackers(customTrackers)) {
+		if (trackerLinks.some((tracker) => tracker.id === customTracker.id)) {
+			continue;
+		}
+
+		trackerLinks.push(customTracker);
+	}
+
+	return trackerLinks;
 }
 
 function getErrorMessage(error: unknown): string {

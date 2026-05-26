@@ -22,7 +22,7 @@ TapLog currently supports:
 12. Current-month rollup summaries across all TapLog CSVs.
 13. A static Markdown tracker index note.
 14. Active-tracker validation reports.
-15. A small TapLog settings tab for creating built-in trackers and ordering them.
+15. A small TapLog settings tab for creating built-in trackers, creating simple custom trackers, and ordering trackers.
 
 TapLog does not currently include a full custom wizard, charts, dashboards, sync, or a full inventory system.
 
@@ -39,9 +39,11 @@ TapLog does not currently include a full custom wizard, charts, dashboards, sync
 
 ## Settings tab
 
-Open TapLog's settings tab in Obsidian to create built-in tracker templates and set tracker order. Tracker order affects newly generated `TapLog/TapLog Index.md` notes and the section order in **TapLog: Create monthly rollup summary**.
+Open TapLog's settings tab in Obsidian to create built-in tracker templates, create a simple custom tracker, and set tracker order. Tracker order affects newly generated `TapLog/TapLog Index.md` notes and the section order in **TapLog: Create monthly rollup summary**.
 
-The settings tab is a simple launcher and order manager. Plain Markdown tracker notes remain the source of truth for tracker config.
+The simple custom tracker builder asks for tracker name, optional tracker id, and one button label per line. It generates a plain Markdown tracker note with `timestamp`, `label`, and `value` columns. The generated note remains editable by the user.
+
+The settings tab is a simple launcher and order manager, not a full custom tracker wizard or advanced schema editor. Plain Markdown tracker notes remain the source of truth for tracker config.
 
 ## Current vault output
 

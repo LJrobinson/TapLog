@@ -70,7 +70,7 @@ export default class TapLogPlugin extends Plugin {
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
 			name: "TapLog: Create tracker index",
 			callback: () => {
-				void createTrackerIndexNote(this.app, this.settings.trackerOrder);
+				void createTrackerIndexNote(this.app, this.settings.trackerOrder, this.settings.customTrackers);
 			}
 		});
 
@@ -100,7 +100,7 @@ export default class TapLogPlugin extends Plugin {
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
 			name: "TapLog: Create monthly rollup summary",
 			callback: () => {
-				void createMonthlyRollupSummary(this.app, this.settings.trackerOrder);
+				void createMonthlyRollupSummary(this.app, this.settings.trackerOrder, this.settings.customTrackers);
 			}
 		});
 	}

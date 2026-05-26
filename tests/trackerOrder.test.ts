@@ -13,6 +13,16 @@ test("tracker order ignores unknown ids and appends missing known trackers", () 
 	]);
 });
 
+test("tracker order supports custom tracker ids when known", () => {
+	assert.deepEqual(normalizeTrackerOrder(["health", "snacks"], [...KNOWN_TRACKER_IDS, "health"]), [
+		"health",
+		"snacks",
+		"cannabis",
+		"basic",
+		"custom"
+	]);
+});
+
 test("tracker order removes duplicates and non-string values", () => {
 	assert.deepEqual(normalizeTrackerOrder(["basic", "basic", 42, "snacks"], KNOWN_TRACKER_IDS), [
 		"basic",

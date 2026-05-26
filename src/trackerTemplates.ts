@@ -177,7 +177,7 @@ export function getTrackerTemplateById(trackerId: string): TrackerTemplate | und
 	return BUILT_IN_TRACKER_TEMPLATES.find((template) => template.taplogId === trackerId);
 }
 
-export async function createTrackerNote(app: App, template: TrackerTemplate) {
+export async function createTrackerNote(app: App, template: TrackerTemplate): Promise<boolean> {
 	const notePath = normalizePath(template.path);
 
 	try {
@@ -203,9 +203,12 @@ export async function createTrackerNote(app: App, template: TrackerTemplate) {
 		} else {
 			new Notice(`${template.name} already existed and was opened.`);
 		}
+
+		return true;
 	} catch (error) {
 		console.error("TapLog failed to create tracker note.", error);
 		new Notice(`TapLog could not create the tracker note: ${getErrorMessage(error)}`);
+		return false;
 	}
 }
 

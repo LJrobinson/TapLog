@@ -1,4 +1,10 @@
-import { PluginSettingTab, Setting, type App, type Plugin } from "obsidian";
+import { Notice, PluginSettingTab, Setting, type App, type Plugin } from "obsidian";
+import {
+	type CustomTrackerDefinition,
+	buildCustomTrackerTemplate,
+	normalizeCustomTrackers,
+	upsertCustomTracker
+} from "./customTracker";
 import { normalizeTrackerOrder } from "./trackerOrder";
 import {
 	BUILT_IN_TRACKER_IDS,
@@ -9,6 +15,7 @@ import {
 
 export interface TapLogSettings {
 	trackerOrder: string[];
+	customTrackers: CustomTrackerDefinition[];
 }
 
 export interface TapLogSettingsHost extends Plugin {
@@ -17,21 +24,43 @@ export interface TapLogSettingsHost extends Plugin {
 }
 
 export const DEFAULT_TAPLOG_SETTINGS: TapLogSettings = {
-	trackerOrder: ["snacks", "cannabis", "basic", "custom"]
+	trackerOrder: ["snacks", "cannabis", "basic", "custom"],
+	customTrackers: []
 };
 
 export function normalizeTapLogSettings(rawSettings: unknown): TapLogSettings {
 	if (!isRecord(rawSettings)) {
+		const customTrackers = normalizeCustomTrackers(undefined);
 		return {
-			trackerOrder: normalizeTrackerOrder(DEFAULT_TAPLOG_SETTINGS.trackerOrder, BUILT_IN_TRACKER_IDS)
+			trackerOrder: normalizeTrackerOrder(DEFAULT_TAPLOG_SETTINGS.trackerOrder, getKnownTrackerIds(customTrackers)),
+			customTrackers
 		};
 	}
 
+	const customTrackers = normalizeCustomTrackers(rawSettings["customTrackers"]);
 	const rawTrackerOrder = Array.isArray(rawSettings["trackerOrder"]) ? rawSettings["trackerOrder"] : DEFAULT_TAPLOG_SETTINGS.trackerOrder;
 
 	return {
-		trackerOrder: normalizeTrackerOrder(rawTrackerOrder, BUILT_IN_TRACKER_IDS)
+		trackerOrder: normalizeTrackerOrder(rawTrackerOrder, getKnownTrackerIds(customTrackers)),
+		customTrackers
 	};
+}
+
+export function registerCustomTracker(settings: TapLogSettings, tracker: CustomTrackerDefinition): TapLogSettings {
+	const customTrackers = upsertCustomTracker(settings.customTrackers, tracker);
+	const trackerOrder = normalizeTrackerOrder([...settings.trackerOrder, tracker.id], getKnownTrackerIds(customTrackers));
+
+	return {
+		trackerOrder,
+		customTrackers
+	};
+}
+
+export function getKnownTrackerIds(customTrackers: readonly CustomTrackerDefinition[]): string[] {
+	return [
+		...BUILT_IN_TRACKER_IDS,
+		...customTrackers.map((tracker) => tracker.id)
+	];
 }
 
 export class TapLogSettingTab extends PluginSettingTab {
@@ -62,6 +91,8 @@ export class TapLogSettingTab extends PluginSettingTab {
 				});
 		}
 
+		this.renderSimpleCustomTrackerSection(containerEl);
+
 		new Setting(containerEl)
 			.setName("Tracker order")
 			.setHeading();
@@ -69,17 +100,17 @@ export class TapLogSettingTab extends PluginSettingTab {
 			text: "Controls the order used by the generated tracker index and monthly rollup."
 		});
 
-		const trackerOrder = normalizeTrackerOrder(this.plugin.settings.trackerOrder, BUILT_IN_TRACKER_IDS);
+		const trackerOrder = normalizeTrackerOrder(this.plugin.settings.trackerOrder, getKnownTrackerIds(this.plugin.settings.customTrackers));
 		for (let index = 0; index < trackerOrder.length; index++) {
 			const trackerId = trackerOrder[index];
-			const template = trackerId ? getTrackerTemplateById(trackerId) : undefined;
-			if (!template) {
+			const tracker = trackerId ? this.getTrackerDisplayInfo(trackerId) : undefined;
+			if (!tracker) {
 				continue;
 			}
 
 			new Setting(containerEl)
-				.setName(template.name)
-				.setDesc(template.taplogId)
+				.setName(tracker.name)
+				.setDesc(tracker.id)
 				.addButton((button) => {
 					button
 						.setButtonText("Move up")
@@ -111,7 +142,7 @@ export class TapLogSettingTab extends PluginSettingTab {
 	}
 
 	private async moveTracker(index: number, direction: -1 | 1) {
-		const trackerOrder = normalizeTrackerOrder(this.plugin.settings.trackerOrder, BUILT_IN_TRACKER_IDS);
+		const trackerOrder = normalizeTrackerOrder(this.plugin.settings.trackerOrder, getKnownTrackerIds(this.plugin.settings.customTrackers));
 		const targetIndex = index + direction;
 		if (targetIndex < 0 || targetIndex >= trackerOrder.length) {
 			return;
@@ -130,9 +161,105 @@ export class TapLogSettingTab extends PluginSettingTab {
 	}
 
 	private async updateTrackerOrder(trackerOrder: readonly string[]) {
-		this.plugin.settings.trackerOrder = normalizeTrackerOrder(trackerOrder, BUILT_IN_TRACKER_IDS);
+		this.plugin.settings.trackerOrder = normalizeTrackerOrder(trackerOrder, getKnownTrackerIds(this.plugin.settings.customTrackers));
 		await this.plugin.saveSettings();
 		this.display();
+	}
+
+	private renderSimpleCustomTrackerSection(containerEl: HTMLElement) {
+		let trackerName = "";
+		let trackerId = "";
+		let buttonLabels = "";
+
+		new Setting(containerEl)
+			.setName("Create simple custom tracker")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Tracker name")
+			.setDesc("Used for the tracker note title and file name.")
+			.addText((text) => {
+				text
+					.setPlaceholder("Health tracker")
+					.onChange((value) => {
+						trackerName = value;
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Tracker identifier")
+			.setDesc("Optional; blank uses a safe identifier from the tracker name.")
+			.addText((text) => {
+				text
+					.setPlaceholder("Health")
+					.onChange((value) => {
+						trackerId = value;
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Button labels")
+			.setDesc("One button label per line.")
+			.addTextArea((text) => {
+				text
+					.onChange((value) => {
+						buttonLabels = value;
+					});
+				text.inputEl.rows = 4;
+			});
+
+		new Setting(containerEl)
+			.setName("Create tracker")
+			.setDesc("Generates a plain Markdown tracker note you can edit afterward.")
+			.addButton((button) => {
+				button
+					.setButtonText("Create custom tracker")
+					.onClick(() => {
+						void this.createSimpleCustomTracker(trackerName, trackerId, buttonLabels);
+					});
+			});
+	}
+
+	private async createSimpleCustomTracker(name: string, id: string, buttonLabels: string) {
+		const result = buildCustomTrackerTemplate({
+			name,
+			id,
+			buttonLabels
+		});
+
+		if (!result.ok) {
+			new Notice(result.message);
+			return;
+		}
+
+		const createdOrOpened = await createTrackerNote(this.plugin.app, result.template);
+		if (!createdOrOpened) {
+			return;
+		}
+
+		this.plugin.settings = registerCustomTracker(this.plugin.settings, result.tracker);
+		await this.plugin.saveSettings();
+		this.display();
+	}
+
+	private getTrackerDisplayInfo(trackerId: string): { id: string; name: string } | undefined {
+		const builtInTemplate = getTrackerTemplateById(trackerId);
+		if (builtInTemplate) {
+			return {
+				id: builtInTemplate.taplogId,
+				name: builtInTemplate.name
+			};
+		}
+
+		const customTracker = this.plugin.settings.customTrackers.find((tracker) => tracker.id === trackerId);
+		if (customTracker) {
+			return {
+				id: customTracker.id,
+				name: customTracker.name
+			};
+		}
+
+		return undefined;
 	}
 }
 

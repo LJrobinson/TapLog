@@ -22,6 +22,21 @@ test("tracker index content follows saved tracker order", () => {
 	assert.ok(snackIndex < cannabisIndex);
 });
 
+test("tracker index content includes custom trackers in saved order", () => {
+	const content = buildTrackerIndexContent(["health", "snacks"], [
+		{
+			id: "health",
+			name: "Health Tracker",
+			path: "TapLog/Trackers/Health Tracker.md"
+		}
+	]);
+	const healthIndex = content.indexOf("[[TapLog/Trackers/Health Tracker|Health Tracker]]");
+	const snackIndex = content.indexOf("[[TapLog/Trackers/Snack Tracker|Snack Tracker]]");
+
+	assert.ok(healthIndex > -1);
+	assert.ok(healthIndex < snackIndex);
+});
+
 test("tracker index content lists TapLog commands and output paths", () => {
 	const content = buildTrackerIndexContent();
 

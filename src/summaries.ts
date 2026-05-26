@@ -1,5 +1,6 @@
 import { Notice, TFile, TFolder, normalizePath, type App } from "obsidian";
 import { buildOutputPath, ensureParentFolders, formatYearMonth, parseCsvData } from "./csv";
+import { normalizeCustomTrackers, type CustomTrackerDefinition } from "./customTracker";
 import { normalizeTrackerOrder, orderTrackerItems } from "./trackerOrder";
 import { BUILT_IN_TRACKER_IDS } from "./trackerTemplates";
 import {
@@ -73,7 +74,11 @@ export async function createMonthlySummaryForActiveTracker(app: App) {
 	}
 }
 
-export async function createMonthlyRollupSummary(app: App, trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS) {
+export async function createMonthlyRollupSummary(
+	app: App,
+	trackerOrder: readonly string[] = BUILT_IN_TRACKER_IDS,
+	customTrackers: readonly CustomTrackerDefinition[] = []
+) {
 	try {
 		const now = new Date();
 		const yearMonth = formatYearMonth(now);
@@ -115,7 +120,7 @@ export async function createMonthlyRollupSummary(app: App, trackerOrder: readonl
 		const orderedTrackerSummaries = orderTrackerItems(
 			trackerSummaries,
 			(summary) => summary.id,
-			normalizeTrackerOrder(trackerOrder, BUILT_IN_TRACKER_IDS)
+			normalizeTrackerOrder(trackerOrder, getKnownRollupTrackerIds(customTrackers))
 		);
 		const rollupPath = normalizePath(`TapLog/Summaries/${yearMonth}/Monthly Rollup.md`);
 		const rollupContent = buildMonthlyRollupSummary(yearMonth, logFolderPath, orderedTrackerSummaries);
@@ -139,6 +144,13 @@ export async function createMonthlyRollupSummary(app: App, trackerOrder: readonl
 		console.error("TapLog failed to create monthly rollup.", error);
 		new Notice(`TapLog could not create the monthly rollup: ${getErrorMessage(error)}`);
 	}
+}
+
+function getKnownRollupTrackerIds(customTrackers: readonly CustomTrackerDefinition[]): string[] {
+	return [
+		...BUILT_IN_TRACKER_IDS,
+		...normalizeCustomTrackers(customTrackers).map((tracker) => tracker.id)
+	];
 }
 
 function buildSummaryPath(config: TaplogConfig, now: Date): string {
