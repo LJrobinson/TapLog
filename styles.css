@@ -9,6 +9,34 @@
 	margin: 0.5rem 0;
 }
 
+.taplog-current-values {
+	margin: 0.5rem 0 0.75rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: 6px;
+	background: var(--background-secondary);
+}
+
+.taplog-current-values-heading {
+	margin-bottom: 0.35rem;
+	font-weight: 600;
+}
+
+.taplog-current-values-list {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0.25rem 0.75rem;
+	margin: 0;
+}
+
+.taplog-current-values-list dt,
+.taplog-current-values-list dd {
+	margin: 0;
+}
+
+.taplog-current-values-list dt {
+	color: var(--text-muted);
+}
+
 .taplog-button-card {
 	display: flex;
 	flex: 1 1 12rem;

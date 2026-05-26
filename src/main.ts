@@ -210,7 +210,7 @@ taplog:
 
 # Cannabis Tracker
 
-Current strain: Neon Moon - Gunpowder Haze
+Edit \`taplog.defaults.strain\` in the frontmatter to change the current strain.
 
 \`\`\`taplog
 id: cannabis
@@ -402,6 +402,8 @@ function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonCli
 	const controlsEl = document.createElement("div");
 	controlsEl.className = "taplog-controls";
 
+	renderCurrentValues(controlsEl, config);
+
 	const buttonRow = document.createElement("div");
 	buttonRow.className = "taplog-button-row";
 
@@ -434,6 +436,41 @@ function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonCli
 	controlsEl.appendChild(buttonRow);
 	controlsEl.appendChild(outputPathEl);
 	el.appendChild(controlsEl);
+}
+
+function renderCurrentValues(containerEl: HTMLElement, config: TaplogConfig) {
+	const currentValues = Object.entries(config.defaults)
+		.map(([key, value]) => [key, valueToDisplayText(value)] as const)
+		.filter(([, value]) => value.length > 0);
+
+	if (currentValues.length === 0) {
+		return;
+	}
+
+	const currentValuesEl = document.createElement("div");
+	currentValuesEl.className = "taplog-current-values";
+
+	const headingEl = document.createElement("div");
+	headingEl.className = "taplog-current-values-heading";
+	headingEl.textContent = "Current values";
+	currentValuesEl.appendChild(headingEl);
+
+	const listEl = document.createElement("dl");
+	listEl.className = "taplog-current-values-list";
+
+	for (const [key, value] of currentValues) {
+		const termEl = document.createElement("dt");
+		termEl.textContent = key;
+
+		const valueEl = document.createElement("dd");
+		valueEl.textContent = value;
+
+		listEl.appendChild(termEl);
+		listEl.appendChild(valueEl);
+	}
+
+	currentValuesEl.appendChild(listEl);
+	containerEl.appendChild(currentValuesEl);
 }
 
 function renderSetupError(el: HTMLElement, message: string) {
@@ -621,6 +658,10 @@ function valueToCsvText(value: unknown): string {
 	} catch {
 		return "";
 	}
+}
+
+function valueToDisplayText(value: unknown): string {
+	return valueToCsvText(value);
 }
 
 function formatLocalTimestamp(date: Date): string {

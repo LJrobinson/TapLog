@@ -14,10 +14,11 @@ TapLog's core product shape is:
 2. YAML frontmatter defines a `taplog` tracker config.
 3. A `taplog` code block renders buttons inside the note.
 4. The rendered block shows the resolved CSV output path.
-5. Each button shows a short preview of what it will log.
-6. Button clicks append timestamped rows to monthly CSV files.
-7. TapLog auto-creates the needed folders, CSV files, and headers.
-8. Broken config shows a friendly visible error in the note instead of failing silently.
+5. Trackers with defaults show a small current values section.
+6. Each button shows a short preview of what it will log.
+7. Button clicks append timestamped rows to monthly CSV files.
+8. TapLog auto-creates the needed folders, CSV files, and headers.
+9. Broken config shows a friendly visible error in the note instead of failing silently.
 
 The intended MVP output path pattern is:
 
@@ -36,10 +37,11 @@ The first build target is intentionally small:
 
 1. One tracker note with YAML frontmatter.
 2. One `taplog` code block that renders buttons.
-3. Visible button previews and a resolved output path.
-4. Button click appends to `TapLog/Logs/YYYY-MM/snacks.csv`.
-5. Auto-create folder, file, and CSV header when missing.
-6. Friendly visible error if the config is broken.
+3. Current values display for tracker defaults.
+4. Visible button previews and a resolved output path.
+5. Button click appends to `TapLog/Logs/YYYY-MM/snacks.csv`.
+6. Auto-create folder, file, and CSV header when missing.
+7. Friendly visible error if the config is broken.
 
 No charts, dashboards, sync logic, complex settings UI, summaries, or par levels are part of this first implementation pass.
 
@@ -132,6 +134,8 @@ If the folder or CSV file does not exist yet, the MVP should create it and write
 
 Before clicking, the rendered button preview shows the configured values that will be logged. For example, **Ate Mosh Bar** previews item, quantity, unit, and category. Cannabis tracker buttons preview the merged tracker defaults, such as strain and method, plus the button size.
 
+Trackers can define reusable defaults. When defaults exist, TapLog shows them as **Current values** above the buttons and uses them for previews and CSV rows. In the generated Cannabis Tracker, edit `taplog.defaults.strain` in the frontmatter, then refresh or reopen the note to use the new strain.
+
 ## Build roadmap
 
 The roadmap from `TapLog Idea.md` is:
@@ -171,4 +175,4 @@ For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsid
 
 ## Current status
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show a resolved output path and button previews, show visible setup errors, create snack and cannabis tracker notes, and append clicked button rows to monthly CSV files. Summaries, par levels, persistent current values, and friendly setup UI are not implemented yet.
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show current values for defaults, show a resolved output path and button previews, show visible setup errors, create snack and cannabis tracker notes, and append clicked button rows to monthly CSV files. Summaries, par levels, and friendly setup UI are not implemented yet.
