@@ -1,23 +1,31 @@
 import { Notice, Plugin, TFile, TFolder, normalizePath, type MarkdownPostProcessorContext, type Vault } from "obsidian";
 
-interface QuicklogButton {
+interface TaplogButton {
 	label: string;
 	values: Record<string, unknown>;
 }
 
-interface QuicklogConfig {
+interface TaplogConfig {
 	id: string;
 	outputType: "csv";
 	outputFolder: string;
 	outputFilePattern: string;
 	columns: string[];
-	buttons: QuicklogButton[];
+	defaults: Record<string, unknown>;
+	buttons: TaplogButton[];
 }
 
-type QuicklogValidationResult =
+interface TrackerTemplate {
+	path: string;
+	name: string;
+	taplogId: string;
+	content: string;
+}
+
+type TaplogValidationResult =
 	| {
 		ok: true;
-		config: QuicklogConfig;
+		config: TaplogConfig;
 	}
 	| {
 		ok: false;
@@ -26,17 +34,27 @@ type QuicklogValidationResult =
 
 export default class TapLogPlugin extends Plugin {
 	async onload() {
-		this.registerMarkdownCodeBlockProcessor("quicklog", (source, el, ctx) => {
-			this.renderQuicklogBlock(source, el, ctx);
+		this.registerMarkdownCodeBlockProcessor("taplog", (source, el, ctx) => {
+			this.renderTaplogBlock(source, el, ctx);
 		});
 
 		this.addCommand({
 			id: "create-snack-tracker-test-note",
 			// The requested command label intentionally includes the plugin name.
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
-			name: "TapLog: Create snack tracker test note",
+			name: "TapLog: Create snack tracker",
 			callback: () => {
-				void this.createSnackTrackerTestNote();
+				void this.createTrackerNote(SNACK_TRACKER_TEMPLATE);
+			}
+		});
+
+		this.addCommand({
+			id: "create-cannabis-tracker",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create cannabis tracker",
+			callback: () => {
+				void this.createTrackerNote(CANNABIS_TRACKER_TEMPLATE);
 			}
 		});
 	}
@@ -44,11 +62,11 @@ export default class TapLogPlugin extends Plugin {
 	onunload() {
 	}
 
-	private renderQuicklogBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+	private renderTaplogBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		clearElement(el);
 
-		const quicklogConfig = this.getQuicklogConfig(ctx);
-		const result = validateQuicklogConfig(source, quicklogConfig);
+		const taplogConfig = this.getTaplogConfig(ctx);
+		const result = validateTaplogConfig(source, taplogConfig);
 
 		if (!result.ok) {
 			renderSetupError(el, result.message);
@@ -60,23 +78,16 @@ export default class TapLogPlugin extends Plugin {
 		});
 	}
 
-	private getQuicklogConfig(ctx: MarkdownPostProcessorContext): unknown {
+	private getTaplogConfig(ctx: MarkdownPostProcessorContext): unknown {
 		const sourceFile = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
 		if (!(sourceFile instanceof TFile)) {
 			return undefined;
 		}
 
-		const cache = this.app.metadataCache.getFileCache(sourceFile);
-		const frontmatter = cache?.frontmatter;
-
-		if (!isRecord(frontmatter)) {
-			return undefined;
-		}
-
-		return frontmatter["quicklog"];
+		return getTaplogFromFrontmatter(this.app.metadataCache.getFileCache(sourceFile)?.frontmatter);
 	}
 
-	private async logButtonClick(config: QuicklogConfig, button: QuicklogButton) {
+	private async logButtonClick(config: TaplogConfig, button: TaplogButton) {
 		try {
 			await appendCsvRow(this.app.vault, config, button, new Date());
 			new Notice(`Logged: ${button.label}`);
@@ -86,8 +97,8 @@ export default class TapLogPlugin extends Plugin {
 		}
 	}
 
-	private async createSnackTrackerTestNote() {
-		const notePath = normalizePath("TapLog/Trackers/Snack Tracker.md");
+	private async createTrackerNote(template: TrackerTemplate) {
+		const notePath = normalizePath(template.path);
 
 		try {
 			await ensureParentFolders(this.app.vault, notePath);
@@ -97,19 +108,43 @@ export default class TapLogPlugin extends Plugin {
 				throw new Error(`"${notePath}" already exists but is not a note.`);
 			}
 
-			const noteFile = existingFile ?? await this.app.vault.create(notePath, SNACK_TRACKER_TEST_NOTE);
+			const noteFile = existingFile ?? await this.app.vault.create(notePath, template.content);
+			const repairedExistingNote = existingFile ? await this.repairInvalidGeneratedTracker(existingFile, template) : false;
 
 			await this.app.workspace.getLeaf(false).openFile(noteFile);
-			new Notice(existingFile ? "Opened snack tracker test note." : "Created snack tracker test note.");
+
+			if (!existingFile) {
+				new Notice(`${template.name} was created.`);
+			} else if (repairedExistingNote) {
+				new Notice(`${template.name} had invalid TapLog frontmatter and was repaired.`);
+			} else {
+				new Notice(`${template.name} already existed and was opened.`);
+			}
 		} catch (error) {
-			console.error("TapLog failed to create snack tracker test note.", error);
-			new Notice(`TapLog could not create the test note: ${getErrorMessage(error)}`);
+			console.error("TapLog failed to create tracker note.", error);
+			new Notice(`TapLog could not create the tracker note: ${getErrorMessage(error)}`);
 		}
+	}
+
+	private async repairInvalidGeneratedTracker(file: TFile, template: TrackerTemplate): Promise<boolean> {
+		const taplogConfig = getTaplogFromFrontmatter(this.app.metadataCache.getFileCache(file)?.frontmatter);
+		const content = await this.app.vault.read(file);
+
+		if (isValidGeneratedTrackerConfig(taplogConfig, template.taplogId) && hasMatchingTaplogCodeBlock(content, template.taplogId)) {
+			return false;
+		}
+
+		await this.app.vault.modify(file, template.content);
+		return true;
 	}
 }
 
-const SNACK_TRACKER_TEST_NOTE = `---
-quicklog:
+const SNACK_TRACKER_TEMPLATE: TrackerTemplate = {
+	path: "TapLog/Trackers/Snack Tracker.md",
+	name: "Snack Tracker",
+	taplogId: "snacks",
+	content: `---
+taplog:
   id: snacks
   output_type: csv
   output_folder: TapLog/Logs
@@ -137,30 +172,78 @@ quicklog:
 
 # Snack Tracker
 
-\`\`\`quicklog
+\`\`\`taplog
 id: snacks
 \`\`\`
-`;
+`
+};
 
-function validateQuicklogConfig(source: string, quicklogConfig: unknown): QuicklogValidationResult {
-	if (!isRecord(quicklogConfig)) {
+const CANNABIS_TRACKER_TEMPLATE: TrackerTemplate = {
+	path: "TapLog/Trackers/Cannabis Tracker.md",
+	name: "Cannabis Tracker",
+	taplogId: "cannabis",
+	content: `---
+taplog:
+  id: cannabis
+  output_type: csv
+  output_folder: TapLog/Logs
+  output_file_pattern: YYYY-MM/cannabis.csv
+  columns:
+    - timestamp
+    - strain
+    - method
+    - size
+  defaults:
+    strain: Neon Moon - Gunpowder Haze
+    method: dab
+  buttons:
+    - label: Micro Dab
+      values:
+        size: micro
+    - label: Small Dab
+      values:
+        size: small
+    - label: Normal Dab
+      values:
+        size: normal
+---
+
+# Cannabis Tracker
+
+Current strain: Neon Moon - Gunpowder Haze
+
+\`\`\`taplog
+id: cannabis
+\`\`\`
+`
+};
+
+function validateTaplogConfig(source: string, taplogConfig: unknown): TaplogValidationResult {
+	if (taplogConfig === undefined || taplogConfig === null) {
 		return {
 			ok: false,
-			message: "Missing quicklog config in this note."
+			message: "Missing taplog config in this note."
 		};
 	}
 
-	const rawConfigId = quicklogConfig["id"];
+	if (!isRecord(taplogConfig)) {
+		return {
+			ok: false,
+			message: "taplog config must be a YAML object."
+		};
+	}
+
+	const rawConfigId = taplogConfig["id"];
 	if (typeof rawConfigId !== "string" || rawConfigId.trim().length === 0) {
 		return {
 			ok: false,
-			message: "Missing quicklog id in this note's frontmatter."
+			message: "Missing taplog id in this note's frontmatter."
 		};
 	}
 
 	const configId = rawConfigId.trim();
 
-	const rawOutputType = quicklogConfig["output_type"];
+	const rawOutputType = taplogConfig["output_type"];
 	if (rawOutputType !== "csv") {
 		return {
 			ok: false,
@@ -168,27 +251,27 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 		};
 	}
 
-	const rawOutputFolder = quicklogConfig["output_folder"];
+	const rawOutputFolder = taplogConfig["output_folder"];
 	if (typeof rawOutputFolder !== "string" || rawOutputFolder.trim().length === 0) {
 		return {
 			ok: false,
-			message: "Missing output_folder in quicklog config."
+			message: "Missing output_folder in taplog config."
 		};
 	}
 
-	const rawOutputFilePattern = quicklogConfig["output_file_pattern"];
+	const rawOutputFilePattern = taplogConfig["output_file_pattern"];
 	if (typeof rawOutputFilePattern !== "string" || rawOutputFilePattern.trim().length === 0) {
 		return {
 			ok: false,
-			message: "Missing output_file_pattern in quicklog config."
+			message: "Missing output_file_pattern in taplog config."
 		};
 	}
 
-	const rawColumns = quicklogConfig["columns"];
+	const rawColumns = taplogConfig["columns"];
 	if (!isUnknownArray(rawColumns) || rawColumns.length === 0) {
 		return {
 			ok: false,
-			message: "Missing quicklog columns. Add at least one column in frontmatter."
+			message: "Missing taplog columns. Add at least one column in frontmatter."
 		};
 	}
 
@@ -205,30 +288,38 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 		columns.push(rawColumn.trim());
 	}
 
-	const blockId = parseQuicklogBlockId(source);
+	const rawDefaults = taplogConfig["defaults"];
+	if (rawDefaults !== undefined && !isRecord(rawDefaults)) {
+		return {
+			ok: false,
+			message: "TapLog defaults must be a config object."
+		};
+	}
+
+	const blockId = parseTaplogBlockId(source);
 	if (!blockId) {
 		return {
 			ok: false,
-			message: `Missing quicklog code block id. Add: id: ${configId}`
+			message: `Missing taplog code block id. Add: id: ${configId}`
 		};
 	}
 
 	if (blockId !== configId) {
 		return {
 			ok: false,
-			message: `Quicklog block id "${blockId}" does not match frontmatter id "${configId}".`
+			message: `TapLog block id "${blockId}" does not match frontmatter id "${configId}".`
 		};
 	}
 
-	const rawButtons = quicklogConfig["buttons"];
+	const rawButtons = taplogConfig["buttons"];
 	if (!isUnknownArray(rawButtons) || rawButtons.length === 0) {
 		return {
 			ok: false,
-			message: "Missing quicklog buttons. Add at least one button in frontmatter."
+			message: "Missing taplog buttons. Add at least one button in frontmatter."
 		};
 	}
 
-	const buttons: QuicklogButton[] = [];
+	const buttons: TaplogButton[] = [];
 	for (let index = 0; index < rawButtons.length; index++) {
 		const rawButton = rawButtons[index];
 		if (!isRecord(rawButton)) {
@@ -268,12 +359,13 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 			outputFolder: rawOutputFolder.trim(),
 			outputFilePattern: rawOutputFilePattern.trim(),
 			columns,
+			defaults: rawDefaults ?? {},
 			buttons
 		}
 	};
 }
 
-function parseQuicklogBlockId(source: string): string | undefined {
+function parseTaplogBlockId(source: string): string | undefined {
 	const lines = source.split(/\r?\n/);
 
 	for (const line of lines) {
@@ -306,7 +398,7 @@ function trimMatchingQuotes(value: string): string {
 	return value;
 }
 
-function renderButtons(el: HTMLElement, config: QuicklogConfig, onButtonClick: (button: QuicklogButton) => void) {
+function renderButtons(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => void) {
 	const buttonRow = document.createElement("div");
 	buttonRow.className = "taplog-button-row";
 
@@ -338,6 +430,30 @@ function clearElement(el: HTMLElement) {
 	}
 }
 
+function getTaplogFromFrontmatter(frontmatter: unknown): unknown {
+	if (!isRecord(frontmatter)) {
+		return undefined;
+	}
+
+	return frontmatter["taplog"];
+}
+
+function isValidGeneratedTrackerConfig(taplogConfig: unknown, expectedId: string): boolean {
+	const result = validateTaplogConfig(`id: ${expectedId}`, taplogConfig);
+
+	return result.ok && result.config.id === expectedId;
+}
+
+function hasMatchingTaplogCodeBlock(content: string, expectedId: string): boolean {
+	const pattern = new RegExp(`\`\`\`taplog\\s*\\r?\\n\\s*id\\s*:\\s*${escapeRegExp(expectedId)}\\s*\\r?\\n\`\`\``);
+
+	return pattern.test(content);
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -346,11 +462,15 @@ function isUnknownArray(value: unknown): value is unknown[] {
 	return Array.isArray(value);
 }
 
-async function appendCsvRow(vault: Vault, config: QuicklogConfig, button: QuicklogButton, now: Date) {
+async function appendCsvRow(vault: Vault, config: TaplogConfig, button: TaplogButton, now: Date) {
 	const outputPath = buildOutputPath(config, now);
 	await ensureParentFolders(vault, outputPath);
 
-	const row = buildCsvRow(config.columns, button.values, now);
+	const rowValues = {
+		...config.defaults,
+		...button.values
+	};
+	const row = buildCsvRow(config.columns, rowValues, now);
 	const header = serializeCsvRow(config.columns);
 	const existingFile = vault.getAbstractFileByPath(outputPath);
 
@@ -371,7 +491,7 @@ async function appendCsvRow(vault: Vault, config: QuicklogConfig, button: Quickl
 	await vault.append(existingFile, appendText);
 }
 
-function buildOutputPath(config: QuicklogConfig, now: Date): string {
+function buildOutputPath(config: TaplogConfig, now: Date): string {
 	return normalizePath(replaceDateTokens(`${config.outputFolder}/${config.outputFilePattern}`, now));
 }
 

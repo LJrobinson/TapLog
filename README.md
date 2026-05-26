@@ -11,8 +11,8 @@ The goal is simple: create a normal Markdown note, define what you want to track
 TapLog's core product shape is:
 
 1. A Markdown tracker note acts as both readable config and control panel.
-2. YAML frontmatter defines a `quicklog` tracker config.
-3. A `quicklog` code block renders buttons inside the note.
+2. YAML frontmatter defines a `taplog` tracker config.
+3. A `taplog` code block renders buttons inside the note.
 4. Button clicks append timestamped rows to monthly CSV files.
 5. TapLog auto-creates the needed folders, CSV files, and headers.
 6. Broken config shows a friendly visible error in the note instead of failing silently.
@@ -23,25 +23,30 @@ The intended MVP output path pattern is:
 TapLog/Logs/YYYY-MM/snacks.csv
 ```
 
+TapLog currently includes command palette starters for:
+
+- **TapLog: Create snack tracker**
+- **TapLog: Create cannabis tracker**
+
 ## MVP target
 
 The first build target is intentionally small:
 
 1. One tracker note with YAML frontmatter.
-2. One `quicklog` code block that renders buttons.
+2. One `taplog` code block that renders buttons.
 3. Button click appends to `TapLog/Logs/YYYY-MM/snacks.csv`.
 4. Auto-create folder, file, and CSV header when missing.
 5. Friendly visible error if the config is broken.
 
-No charts, dashboards, sync logic, complex settings UI, summaries, par levels, or templates are part of this first implementation pass.
+No charts, dashboards, sync logic, complex settings UI, summaries, or par levels are part of this first implementation pass.
 
 ## Example tracker note
 
 This is the product shape TapLog is being built toward:
 
-```markdown
+````markdown
 ---
-quicklog:
+taplog:
   id: snacks
   output_type: csv
   output_folder: TapLog/Logs
@@ -80,12 +85,30 @@ quicklog:
 
 # Snack Tracker
 
-```quicklog
+```taplog
 id: snacks
 ```
+````
 
+The rendered `taplog` block should become tappable buttons for the configured tracker.
 
-The rendered `quicklog` block should become tappable buttons for the configured tracker.
+The snack tracker command creates:
+
+```text
+TapLog/Trackers/Snack Tracker.md
+```
+
+The cannabis tracker command creates:
+
+```text
+TapLog/Trackers/Cannabis Tracker.md
+```
+
+Its CSV output is:
+
+```text
+TapLog/Logs/YYYY-MM/cannabis.csv
+```
 
 ## Example CSV output
 
@@ -108,12 +131,12 @@ If the folder or CSV file does not exist yet, the MVP should create it and write
 
 The roadmap from `TapLog Idea.md` is:
 
-1. Markdown tracker note with `quicklog` config.
-2. `quicklog` code block button renderer.
+1. Markdown tracker note with `taplog` config.
+2. `taplog` code block button renderer.
 3. Button click logging to monthly CSV output.
 4. Auto-created folders, files, and CSV headers.
 5. Friendly visible config validation errors.
-6. Tracker templates.
+6. Additional tracker templates.
 7. Monthly summaries.
 8. Par level suggestions.
 9. Persistent current values.
@@ -143,4 +166,4 @@ For manual testing, copy `manifest.json`, `main.js`, and `styles.css` to `.obsid
 
 ## Current status
 
-This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `quicklog` buttons from a note's frontmatter, show visible setup errors, and append clicked button rows to monthly CSV files. Templates, summaries, par levels, persistent current values, and friendly setup UI are not implemented yet.
+This repository is currently a clean TapLog foundation based on the official Obsidian sample plugin structure. The plugin can render configured `taplog` buttons from a note's frontmatter, show visible setup errors, create snack and cannabis tracker notes, and append clicked button rows to monthly CSV files. Summaries, par levels, persistent current values, and friendly setup UI are not implemented yet.
