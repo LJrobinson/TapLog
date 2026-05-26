@@ -21,6 +21,7 @@ TapLog currently supports:
 11. Snack par/restock guidance when `taplog.par_levels` exists.
 12. Current-month rollup summaries across all TapLog CSVs.
 13. A static Markdown tracker index note.
+14. Active-tracker validation reports.
 
 TapLog does not currently include settings UI, a custom wizard, charts, dashboards, sync, or a full inventory system.
 
@@ -32,6 +33,7 @@ TapLog does not currently include settings UI, a custom wizard, charts, dashboar
 - **TapLog: Create custom tracker template**
 - **TapLog: Create tracker index**
 - **TapLog: Create monthly summary for active tracker**
+- **TapLog: Validate active tracker**
 - **TapLog: Create monthly rollup summary**
 
 ## Current vault output
@@ -61,6 +63,7 @@ TapLog/TapLog Index.md
 TapLog/Trackers/Snack Tracker.md
 TapLog/Logs/YYYY-MM/snacks.csv
 TapLog/Summaries/YYYY-MM/snacks Summary.md
+TapLog/Summaries/YYYY-MM/snacks Validation.md
 TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 ```
 
@@ -155,6 +158,14 @@ TapLog/Summaries/YYYY-MM/Monthly Rollup.md
 
 It includes month, source folder, tracker count, total event count, and one small section per tracker CSV.
 
+Run **TapLog: Validate active tracker** while viewing a tracker note to check the `taplog` config. Valid trackers generate a small report at:
+
+```text
+TapLog/Summaries/YYYY-MM/{tracker-id} Validation.md
+```
+
+Invalid trackers show a friendly Notice with the first setup problem. This is not a live validation panel.
+
 ## Manual test checklist
 
 1. Run each tracker command: snack, cannabis, basic, and custom.
@@ -164,8 +175,10 @@ It includes month, source folder, tracker count, total event count, and one smal
 5. Confirm CSV rows appear under `TapLog/Logs/YYYY-MM/`.
 6. Run **TapLog: Create monthly summary for active tracker** from a tracker note.
 7. Confirm the tracker summary opens under `TapLog/Summaries/YYYY-MM/`.
-8. Run **TapLog: Create monthly rollup summary**.
-9. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
+8. Run **TapLog: Validate active tracker** from a tracker note.
+9. Confirm the validation report opens under `TapLog/Summaries/YYYY-MM/`.
+10. Run **TapLog: Create monthly rollup summary**.
+11. Confirm `TapLog/Summaries/YYYY-MM/Monthly Rollup.md` opens.
 
 ## Development setup
 

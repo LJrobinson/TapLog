@@ -56,6 +56,7 @@ If a tracker note does not exist yet, run its create command from the command pa
 - TapLog: Create basic tracker template
 - TapLog: Create custom tracker template
 - TapLog: Create monthly summary for active tracker
+- TapLog: Validate active tracker
 - TapLog: Create monthly rollup summary
 
 ## Usage flow

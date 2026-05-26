@@ -9,6 +9,7 @@ import {
 	SNACK_TRACKER_TEMPLATE,
 	createTrackerNote
 } from "./trackerTemplates";
+import { validateActiveTracker } from "./trackerValidation";
 import { getTaplogFromFrontmatter, validateTaplogConfig, type TaplogButton, type TaplogConfig } from "./taplogConfig";
 
 export default class TapLogPlugin extends Plugin {
@@ -74,6 +75,16 @@ export default class TapLogPlugin extends Plugin {
 			name: "TapLog: Create monthly summary for active tracker",
 			callback: () => {
 				void createMonthlySummaryForActiveTracker(this.app);
+			}
+		});
+
+		this.addCommand({
+			id: "validate-active-tracker",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Validate active tracker",
+			callback: () => {
+				void validateActiveTracker(this.app);
 			}
 		});
 

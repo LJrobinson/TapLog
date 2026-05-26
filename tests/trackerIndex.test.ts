@@ -21,6 +21,7 @@ test("tracker index content lists TapLog commands and output paths", () => {
 	assert.match(content, /TapLog: Create basic tracker template/);
 	assert.match(content, /TapLog: Create custom tracker template/);
 	assert.match(content, /TapLog: Create monthly summary for active tracker/);
+	assert.match(content, /TapLog: Validate active tracker/);
 	assert.match(content, /TapLog: Create monthly rollup summary/);
 	assert.match(content, /TapLog\/Trackers\//);
 	assert.match(content, /TapLog\/Logs\/YYYY-MM\//);
