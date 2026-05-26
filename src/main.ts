@@ -1,11 +1,16 @@
-import { Notice, Plugin, type MarkdownPostProcessorContext } from "obsidian";
+import { Notice, Plugin, normalizePath, type MarkdownPostProcessorContext, type Vault } from "obsidian";
 
 interface QuicklogButton {
 	label: string;
+	values: Record<string, unknown>;
 }
 
 interface QuicklogConfig {
 	id: string;
+	outputType: "csv";
+	outputFolder: string;
+	outputFilePattern: string;
+	columns: string[];
 	buttons: QuicklogButton[];
 }
 
@@ -40,7 +45,9 @@ export default class TapLogPlugin extends Plugin {
 			return;
 		}
 
-		renderButtons(el, result.config);
+		renderButtons(el, result.config, (button) => {
+			void this.logButtonClick(result.config, button);
+		});
 	}
 
 	private getQuicklogConfig(ctx: MarkdownPostProcessorContext): unknown {
@@ -52,6 +59,16 @@ export default class TapLogPlugin extends Plugin {
 		}
 
 		return frontmatter["quicklog"];
+	}
+
+	private async logButtonClick(config: QuicklogConfig, button: QuicklogButton) {
+		try {
+			await appendCsvRow(this.app.vault, config, button, new Date());
+			new Notice(`Logged: ${button.label}`);
+		} catch (error) {
+			console.error("TapLog failed to write CSV row.", error);
+			new Notice(`TapLog could not write the log row: ${getErrorMessage(error)}`);
+		}
 	}
 }
 
@@ -72,6 +89,52 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 	}
 
 	const configId = rawConfigId.trim();
+
+	const rawOutputType = quicklogConfig["output_type"];
+	if (rawOutputType !== "csv") {
+		return {
+			ok: false,
+			message: "TapLog only supports output_type: csv right now."
+		};
+	}
+
+	const rawOutputFolder = quicklogConfig["output_folder"];
+	if (typeof rawOutputFolder !== "string" || rawOutputFolder.trim().length === 0) {
+		return {
+			ok: false,
+			message: "Missing output_folder in quicklog config."
+		};
+	}
+
+	const rawOutputFilePattern = quicklogConfig["output_file_pattern"];
+	if (typeof rawOutputFilePattern !== "string" || rawOutputFilePattern.trim().length === 0) {
+		return {
+			ok: false,
+			message: "Missing output_file_pattern in quicklog config."
+		};
+	}
+
+	const rawColumns = quicklogConfig["columns"];
+	if (!Array.isArray(rawColumns) || rawColumns.length === 0) {
+		return {
+			ok: false,
+			message: "Missing quicklog columns. Add at least one column in frontmatter."
+		};
+	}
+
+	const columns: string[] = [];
+	for (let index = 0; index < rawColumns.length; index++) {
+		const rawColumn = rawColumns[index];
+		if (typeof rawColumn !== "string" || rawColumn.trim().length === 0) {
+			return {
+				ok: false,
+				message: `Column ${index + 1} must be a non-empty name.`
+			};
+		}
+
+		columns.push(rawColumn.trim());
+	}
+
 	const blockId = parseQuicklogBlockId(source);
 	if (!blockId) {
 		return {
@@ -113,8 +176,17 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 			};
 		}
 
+		const rawValues = rawButton["values"];
+		if (rawValues !== undefined && !isRecord(rawValues)) {
+			return {
+				ok: false,
+				message: `Button ${index + 1} values must be a config object.`
+			};
+		}
+
 		buttons.push({
-			label: rawLabel.trim()
+			label: rawLabel.trim(),
+			values: rawValues ?? {}
 		});
 	}
 
@@ -122,6 +194,10 @@ function validateQuicklogConfig(source: string, quicklogConfig: unknown): Quickl
 		ok: true,
 		config: {
 			id: configId,
+			outputType: rawOutputType,
+			outputFolder: rawOutputFolder.trim(),
+			outputFilePattern: rawOutputFilePattern.trim(),
+			columns,
 			buttons
 		}
 	};
@@ -160,7 +236,7 @@ function trimMatchingQuotes(value: string): string {
 	return value;
 }
 
-function renderButtons(el: HTMLElement, config: QuicklogConfig) {
+function renderButtons(el: HTMLElement, config: QuicklogConfig, onButtonClick: (button: QuicklogButton) => void) {
 	const buttonRow = document.createElement("div");
 	buttonRow.className = "taplog-button-row";
 
@@ -170,7 +246,7 @@ function renderButtons(el: HTMLElement, config: QuicklogConfig) {
 		buttonEl.className = "taplog-button";
 		buttonEl.textContent = button.label;
 		buttonEl.addEventListener("click", () => {
-			new Notice(`Logged: ${button.label}`);
+			onButtonClick(button);
 		});
 
 		buttonRow.appendChild(buttonEl);
@@ -194,4 +270,122 @@ function clearElement(el: HTMLElement) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function appendCsvRow(vault: Vault, config: QuicklogConfig, button: QuicklogButton, now: Date) {
+	const outputPath = buildOutputPath(config, now);
+	await ensureParentFolders(vault, outputPath);
+
+	const row = buildCsvRow(config.columns, button.values, now);
+	const header = serializeCsvRow(config.columns);
+	const existingFile = vault.getFileByPath(outputPath);
+
+	if (!existingFile) {
+		await vault.create(outputPath, `${header}\n${row}\n`);
+		return;
+	}
+
+	const existingContent = await vault.read(existingFile);
+	const needsHeader = existingContent.trim().length === 0;
+	const needsSeparator = existingContent.length > 0 && !existingContent.endsWith("\n");
+	const appendText = `${needsSeparator ? "\n" : ""}${needsHeader ? `${header}\n` : ""}${row}\n`;
+
+	await vault.append(existingFile, appendText);
+}
+
+function buildOutputPath(config: QuicklogConfig, now: Date): string {
+	return normalizePath(replaceDateTokens(`${config.outputFolder}/${config.outputFilePattern}`, now));
+}
+
+function replaceDateTokens(value: string, now: Date): string {
+	const year = String(now.getFullYear());
+	const month = String(now.getMonth() + 1).padStart(2, "0");
+
+	return value
+		.replace(/YYYY/g, year)
+		.replace(/MM/g, month);
+}
+
+async function ensureParentFolders(vault: Vault, filePath: string) {
+	const lastSlashIndex = filePath.lastIndexOf("/");
+	if (lastSlashIndex === -1) {
+		return;
+	}
+
+	const folderPath = filePath.slice(0, lastSlashIndex);
+	const parts = folderPath.split("/").filter((part) => part.length > 0);
+	let currentPath = "";
+
+	for (const part of parts) {
+		currentPath = currentPath.length === 0 ? part : `${currentPath}/${part}`;
+
+		if (vault.getFolderByPath(currentPath)) {
+			continue;
+		}
+
+		if (vault.getAbstractFileByPath(currentPath)) {
+			throw new Error(`Cannot create folder "${currentPath}" because a file already exists there.`);
+		}
+
+		await vault.createFolder(currentPath);
+	}
+}
+
+function buildCsvRow(columns: string[], values: Record<string, unknown>, now: Date): string {
+	return serializeCsvRow(columns.map((column) => {
+		if (column === "timestamp") {
+			return formatLocalTimestamp(now);
+		}
+
+		return values[column] ?? "";
+	}));
+}
+
+function serializeCsvRow(values: unknown[]): string {
+	return values.map(csvEscape).join(",");
+}
+
+function csvEscape(value: unknown): string {
+	const text = valueToCsvText(value);
+
+	if (/[",\r\n]/.test(text)) {
+		return `"${text.replace(/"/g, "\"\"")}"`;
+	}
+
+	return text;
+}
+
+function valueToCsvText(value: unknown): string {
+	if (value === null || value === undefined) {
+		return "";
+	}
+
+	if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return String(value);
+	}
+}
+
+function formatLocalTimestamp(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const hour = String(date.getHours()).padStart(2, "0");
+	const minute = String(date.getMinutes()).padStart(2, "0");
+	const second = String(date.getSeconds()).padStart(2, "0");
+
+	return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message.length > 0) {
+		return error.message;
+	}
+
+	return "Check the tracker config and try again.";
 }
