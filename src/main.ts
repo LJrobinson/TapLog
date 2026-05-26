@@ -75,6 +75,16 @@ export default class TapLogPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "create-custom-tracker-template",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create custom tracker template",
+			callback: () => {
+				void this.createTrackerNote(CUSTOM_TRACKER_TEMPLATE);
+			}
+		});
+
+		this.addCommand({
 			id: "create-monthly-summary-active-tracker",
 			// The requested command label intentionally includes the plugin name.
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
@@ -99,9 +109,7 @@ export default class TapLogPlugin extends Plugin {
 			return;
 		}
 
-		renderTaplogControls(el, result.config, (button) => {
-			void this.logButtonClick(result.config, button);
-		});
+		renderTaplogControls(el, result.config, (button) => this.logButtonClick(result.config, button));
 	}
 
 	private getTaplogConfig(ctx: MarkdownPostProcessorContext): unknown {
@@ -382,6 +390,44 @@ id: basic
 `
 };
 
+const CUSTOM_TRACKER_TEMPLATE: TrackerTemplate = {
+	path: "TapLog/Trackers/Custom Tracker.md",
+	name: "Custom Tracker",
+	taplogId: "custom",
+	content: `---
+taplog:
+  id: custom
+  output_type: csv
+  output_folder: TapLog/Logs
+  output_file_pattern: YYYY-MM/custom.csv
+  columns:
+    - timestamp
+    - label
+    - value
+    - note
+  defaults:
+    note: edit me
+  buttons:
+    - label: Log Example A
+      values:
+        label: Example A
+        value: 1
+    - label: Log Example B
+      values:
+        label: Example B
+        value: 1
+---
+
+# Custom Tracker
+
+Edit the frontmatter to change the tracker id, output file pattern, columns, defaults, buttons, and button values.
+
+\`\`\`taplog
+id: custom
+\`\`\`
+`
+};
+
 function validateTaplogConfig(source: string, taplogConfig: unknown): TaplogValidationResult {
 	if (taplogConfig === undefined || taplogConfig === null) {
 		return {
@@ -602,7 +648,9 @@ function trimMatchingQuotes(value: string): string {
 	return value;
 }
 
-function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => void) {
+const BUTTON_COOLDOWN_MS = 750;
+
+function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonClick: (button: TaplogButton) => Promise<void>) {
 	const controlsEl = document.createElement("div");
 	controlsEl.className = "taplog-controls";
 
@@ -621,7 +669,7 @@ function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonCli
 		buttonEl.textContent = button.label;
 		buttonEl.title = buildButtonPreview(config, button);
 		buttonEl.addEventListener("click", () => {
-			onButtonClick(button);
+			void handleButtonClick(buttonEl, button, onButtonClick);
 		});
 
 		const previewEl = document.createElement("div");
@@ -640,6 +688,21 @@ function renderTaplogControls(el: HTMLElement, config: TaplogConfig, onButtonCli
 	controlsEl.appendChild(buttonRow);
 	controlsEl.appendChild(outputPathEl);
 	el.appendChild(controlsEl);
+}
+
+async function handleButtonClick(buttonEl: HTMLButtonElement, button: TaplogButton, onButtonClick: (button: TaplogButton) => Promise<void>) {
+	if (buttonEl.disabled) {
+		return;
+	}
+
+	buttonEl.disabled = true;
+
+	try {
+		await onButtonClick(button);
+		await wait(BUTTON_COOLDOWN_MS);
+	} finally {
+		buttonEl.disabled = false;
+	}
 }
 
 function renderCurrentValues(containerEl: HTMLElement, config: TaplogConfig) {
@@ -1057,6 +1120,12 @@ function valueToCsvText(value: unknown): string {
 
 function valueToDisplayText(value: unknown): string {
 	return valueToCsvText(value);
+}
+
+async function wait(milliseconds: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		window.setTimeout(resolve, milliseconds);
+	});
 }
 
 function formatLocalTimestamp(date: Date): string {
