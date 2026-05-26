@@ -65,6 +65,16 @@ export default class TapLogPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "create-basic-tracker-template",
+			// The requested command label intentionally includes the plugin name.
+			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
+			name: "TapLog: Create basic tracker template",
+			callback: () => {
+				void this.createTrackerNote(BASIC_TRACKER_TEMPLATE);
+			}
+		});
+
+		this.addCommand({
 			id: "create-monthly-summary-active-tracker",
 			// The requested command label intentionally includes the plugin name.
 			// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case
@@ -335,6 +345,39 @@ Edit \`taplog.defaults.strain\` in the frontmatter to change the current strain.
 
 \`\`\`taplog
 id: cannabis
+\`\`\`
+`
+};
+
+const BASIC_TRACKER_TEMPLATE: TrackerTemplate = {
+	path: "TapLog/Trackers/Basic Tracker.md",
+	name: "Basic Tracker",
+	taplogId: "basic",
+	content: `---
+taplog:
+  id: basic
+  output_type: csv
+  output_folder: TapLog/Logs
+  output_file_pattern: YYYY-MM/basic.csv
+  columns:
+    - timestamp
+    - action
+    - value
+  buttons:
+    - label: Logged Thing
+      values:
+        action: Thing
+        value: 1
+    - label: Logged Other Thing
+      values:
+        action: Other Thing
+        value: 1
+---
+
+# Basic Tracker
+
+\`\`\`taplog
+id: basic
 \`\`\`
 `
 };
