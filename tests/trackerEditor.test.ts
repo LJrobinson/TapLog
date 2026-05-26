@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	addEditableButtonRow,
+	addEditableValueRow,
 	buildEditableTrackerForm,
 	buildEditedTaplogConfig,
 	buttonConfigToEditableRows,
 	editableButtonRowsToConfig,
 	parseEditableButtonLines,
 	removeEditableButtonRow,
+	removeEditableValueRow,
 	serializeTaplogConfig,
 	updateTaplogFrontmatter
 } from "../src/trackerEditor";
@@ -42,7 +44,16 @@ test("edited tracker form serializes buttons back to taplog config", () => {
 		buttons: [
 			{
 				label: "Ate Mosh Bar",
-				valuesText: "item=Mosh Bar\nquantity=1"
+				values: [
+					{
+						field: "item",
+						value: "Mosh Bar"
+					},
+					{
+						field: "quantity",
+						value: "1"
+					}
+				]
 			}
 		]
 	});
@@ -76,7 +87,16 @@ test("editable tracker form renders existing config as simple text fields", () =
 		buttons: [
 			{
 				label: "Ate Mosh Bar",
-				valuesText: "item=Mosh Bar\nquantity=1"
+				values: [
+					{
+						field: "item",
+						value: "Mosh Bar"
+					},
+					{
+						field: "quantity",
+						value: "1"
+					}
+				]
 			}
 		]
 	});
@@ -95,7 +115,20 @@ test("button config renders as editable rows", () => {
 	]), [
 		{
 			label: "Ate Mosh Bar",
-			valuesText: "item=Mosh Bar\nquantity=1\nfavorite=true"
+			values: [
+				{
+					field: "item",
+					value: "Mosh Bar"
+				},
+				{
+					field: "quantity",
+					value: "1"
+				},
+				{
+					field: "favorite",
+					value: "true"
+				}
+			]
 		}
 	]);
 });
@@ -104,7 +137,20 @@ test("editable button rows serialize back to button config", () => {
 	const result = editableButtonRowsToConfig([
 		{
 			label: "Ate Mosh Bar",
-			valuesText: "item=Mosh Bar\nquantity=1\nfavorite=true"
+			values: [
+				{
+					field: "item",
+					value: "Mosh Bar"
+				},
+				{
+					field: "quantity",
+					value: "1"
+				},
+				{
+					field: "favorite",
+					value: "true"
+				}
+			]
 		}
 	]);
 
@@ -133,7 +179,12 @@ test("editable button rows allow empty values without dropping the button", () =
 		buttons: [
 			{
 				label: "New button",
-				valuesText: ""
+				values: [
+					{
+						field: "",
+						value: ""
+					}
+				]
 			}
 		]
 	});
@@ -167,27 +218,71 @@ test("taplog serializer writes empty button values as an object", () => {
 	assert.ok(serialized.includes("values: {}"));
 });
 
-test("editable button rows reject malformed value lines", () => {
-	assert.deepEqual(editableButtonRowsToConfig([
+test("editable button rows ignore fully blank value rows", () => {
+	const result = editableButtonRowsToConfig([
 		{
 			label: "Ate Mosh Bar",
-			valuesText: "item Mosh Bar"
+			values: [
+				{
+					field: "item",
+					value: "Mosh Bar"
+				},
+				{
+					field: "",
+					value: ""
+				}
+			]
 		}
-	]), {
-		ok: false,
-		message: "Button 1 value line 1 must use key=value."
+	]);
+
+	assert.deepEqual(result, {
+		ok: true,
+		value: [
+			{
+				label: "Ate Mosh Bar",
+				values: {
+					item: "Mosh Bar"
+				}
+			}
+		]
 	});
 });
 
-test("editable button rows reject blank value keys", () => {
+test("editable button rows reject blank fields with values", () => {
 	assert.deepEqual(editableButtonRowsToConfig([
 		{
 			label: "Ate Mosh Bar",
-			valuesText: "=Mosh Bar"
+			values: [
+				{
+					field: "",
+					value: "Mosh Bar"
+				}
+			]
 		}
 	]), {
 		ok: false,
-		message: "Button 1 value line 1 needs a value key."
+		message: "Button 1 logged value 1 needs a field before saving."
+	});
+});
+
+test("editable button rows reject duplicate fields", () => {
+	assert.deepEqual(editableButtonRowsToConfig([
+		{
+			label: "Ate Mosh Bar",
+			values: [
+				{
+					field: "Item",
+					value: "Mosh Bar"
+				},
+				{
+					field: "item",
+					value: "Protein Bar"
+				}
+			]
+		}
+	]), {
+		ok: false,
+		message: "Button 1 has duplicate value key \"item\"."
 	});
 });
 
@@ -195,7 +290,12 @@ test("editable button rows reject blank button labels", () => {
 	assert.deepEqual(editableButtonRowsToConfig([
 		{
 			label: "  ",
-			valuesText: "item=Mosh Bar"
+			values: [
+				{
+					field: "item",
+					value: "Mosh Bar"
+				}
+			]
 		}
 	]), {
 		ok: false,
@@ -207,24 +307,73 @@ test("editable button row helpers add and remove rows", () => {
 	const addedRows = addEditableButtonRow([
 		{
 			label: "Ate Mosh Bar",
-			valuesText: "item=Mosh Bar"
+			values: [
+				{
+					field: "item",
+					value: "Mosh Bar"
+				}
+			]
 		}
 	]);
 
 	assert.deepEqual(addedRows, [
 		{
 			label: "Ate Mosh Bar",
-			valuesText: "item=Mosh Bar"
+			values: [
+				{
+					field: "item",
+					value: "Mosh Bar"
+				}
+			]
 		},
 		{
 			label: "New button",
-			valuesText: ""
+			values: [
+				{
+					field: "",
+					value: ""
+				}
+			]
 		}
 	]);
 	assert.deepEqual(removeEditableButtonRow(addedRows, 0), [
 		{
 			label: "New button",
-			valuesText: ""
+			values: [
+				{
+					field: "",
+					value: ""
+				}
+			]
+		}
+	]);
+});
+
+test("editable value row helpers add and remove rows", () => {
+	const addedRows = addEditableValueRow({
+		label: "Ate Mosh Bar",
+		values: [
+			{
+				field: "item",
+				value: "Mosh Bar"
+			}
+		]
+	});
+
+	assert.deepEqual(addedRows.values, [
+		{
+			field: "item",
+			value: "Mosh Bar"
+		},
+		{
+			field: "",
+			value: ""
+		}
+	]);
+	assert.deepEqual(removeEditableValueRow(addedRows, 0).values, [
+		{
+			field: "",
+			value: ""
 		}
 	]);
 });
@@ -239,7 +388,20 @@ test("updating taplog frontmatter preserves note body and other frontmatter", ()
 		buttons: [
 			{
 				label: "Protein Bar",
-				valuesText: "item=Protein Bar\nquantity=1\nunit=bar"
+				values: [
+					{
+						field: "item",
+						value: "Protein Bar"
+					},
+					{
+						field: "quantity",
+						value: "1"
+					},
+					{
+						field: "unit",
+						value: "bar"
+					}
+				]
 			}
 		]
 	});
@@ -264,7 +426,12 @@ test("updating taplog frontmatter refuses notes without taplog config", () => {
 		buttons: [
 			{
 				label: "Ate Mosh Bar",
-				valuesText: "item=Mosh Bar"
+				values: [
+					{
+						field: "item",
+						value: "Mosh Bar"
+					}
+				]
 			}
 		]
 	});

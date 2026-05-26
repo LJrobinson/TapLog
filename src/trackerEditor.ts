@@ -10,7 +10,12 @@ import { valueToCsvText } from "./csv";
 
 export interface EditableButtonRow {
 	label: string;
-	valuesText: string;
+	values: EditableButtonValueRow[];
+}
+
+export interface EditableButtonValueRow {
+	field: string;
+	value: string;
 }
 
 export interface EditableTrackerForm {
@@ -50,7 +55,7 @@ export function parseEditableButtonLines(value: string): CustomTrackerButtonDefi
 export function buttonConfigToEditableRows(buttons: readonly { label: string; values: Record<string, unknown> }[]): EditableButtonRow[] {
 	return buttons.map((button) => ({
 		label: button.label,
-		valuesText: recordToKeyValueText(button.values)
+		values: buttonValuesToEditableRows(button.values)
 	}));
 }
 
@@ -59,13 +64,38 @@ export function addEditableButtonRow(buttons: readonly EditableButtonRow[]): Edi
 		...buttons,
 		{
 			label: "New button",
-			valuesText: ""
+			values: [
+				{
+					field: "",
+					value: ""
+				}
+			]
 		}
 	];
 }
 
 export function removeEditableButtonRow(buttons: readonly EditableButtonRow[], indexToRemove: number): EditableButtonRow[] {
 	return buttons.filter((_, index) => index !== indexToRemove);
+}
+
+export function addEditableValueRow(button: EditableButtonRow): EditableButtonRow {
+	return {
+		...button,
+		values: [
+			...button.values,
+			{
+				field: "",
+				value: ""
+			}
+		]
+	};
+}
+
+export function removeEditableValueRow(button: EditableButtonRow, indexToRemove: number): EditableButtonRow {
+	return {
+		...button,
+		values: button.values.filter((_, index) => index !== indexToRemove)
+	};
 }
 
 export function editableButtonRowsToConfig(buttons: readonly EditableButtonRow[]): TrackerEditorResult<Array<{ label: string; values: Record<string, unknown> }>> {
@@ -91,7 +121,7 @@ export function editableButtonRowsToConfig(buttons: readonly EditableButtonRow[]
 			};
 		}
 
-		const valuesResult = parseEditableValueLines(button.valuesText, index);
+		const valuesResult = editableValueRowsToRecord(button.values, index);
 		if (!valuesResult.ok) {
 			return valuesResult;
 		}
@@ -330,6 +360,13 @@ function recordToKeyValueText(record: Record<string, unknown>): string {
 		.join("\n");
 }
 
+function buttonValuesToEditableRows(values: Record<string, unknown>): EditableButtonValueRow[] {
+	return Object.entries(values).map(([field, value]) => ({
+		field,
+		value: valueToEditableText(value)
+	}));
+}
+
 function appendYamlEntry(lines: string[], indentSpaces: number, key: string, value: unknown) {
 	const indent = " ".repeat(indentSpaces);
 	if (isRecord(value) && Object.keys(value).length === 0) {
@@ -408,32 +445,34 @@ function hasOwn(record: Record<string, unknown>, key: string): boolean {
 	return Object.prototype.hasOwnProperty.call(record, key);
 }
 
-function parseEditableValueLines(value: string, buttonIndex: number): TrackerEditorResult<Record<string, unknown>> {
+function editableValueRowsToRecord(rows: readonly EditableButtonValueRow[], buttonIndex: number): TrackerEditorResult<Record<string, unknown>> {
 	const values: Record<string, unknown> = {};
 	const seenKeys = new Set<string>();
-	const lines = value.split(/\r?\n/);
 
-	for (let index = 0; index < lines.length; index++) {
-		const line = lines[index] ?? "";
-		const trimmedLine = line.trim();
-		if (!trimmedLine) {
+	for (let index = 0; index < rows.length; index++) {
+		const row = rows[index];
+		if (!row) {
 			continue;
 		}
 
-		const separatorIndex = trimmedLine.indexOf("=");
-		if (separatorIndex === -1) {
+		const rawField = row.field.trim();
+		const rawValue = row.value.trim();
+		if (!rawField && !rawValue) {
+			continue;
+		}
+
+		if (!rawField && rawValue) {
 			return {
 				ok: false,
-				message: `Button ${buttonIndex + 1} value line ${index + 1} must use key=value.`
+				message: `Button ${buttonIndex + 1} logged value ${index + 1} needs a field before saving.`
 			};
 		}
 
-		const rawKey = trimmedLine.slice(0, separatorIndex).trim();
-		const key = normalizeColumnName(rawKey);
-		if (!rawKey || !key) {
+		const key = normalizeColumnName(rawField);
+		if (!key) {
 			return {
 				ok: false,
-				message: `Button ${buttonIndex + 1} value line ${index + 1} needs a value key.`
+				message: `Button ${buttonIndex + 1} logged value ${index + 1} needs a usable field name.`
 			};
 		}
 
@@ -445,7 +484,7 @@ function parseEditableValueLines(value: string, buttonIndex: number): TrackerEdi
 		}
 
 		seenKeys.add(key);
-		values[key] = parseEditableScalarValue(trimmedLine.slice(separatorIndex + 1).trim());
+		values[key] = parseEditableScalarValue(rawValue);
 	}
 
 	return {

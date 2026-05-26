@@ -16,10 +16,13 @@ import {
 } from "./trackerTemplates";
 import {
 	addEditableButtonRow,
+	addEditableValueRow,
 	buildEditableTrackerForm,
 	removeEditableButtonRow,
+	removeEditableValueRow,
 	updateTaplogFrontmatter,
 	type EditableButtonRow,
+	type EditableButtonValueRow,
 	type EditableTrackerForm
 } from "./trackerEditor";
 import {
@@ -524,45 +527,128 @@ export class TapLogSettingTab extends PluginSettingTab {
 			cls: "taplog-settings-button-card"
 		});
 
-		new Setting(rowEl)
-			.setName(`Button ${index + 1}`)
-			.setDesc("Text shown on the tracker button.")
-			.addText((text) => {
-				text
-					.setPlaceholder("New button")
-					.setValue(button.label)
-					.onChange((value) => {
-						button.label = value;
-					});
-			})
-			.addButton((removeButton) => {
-				removeButton
-					.setButtonText("Remove button")
-					.onClick(onRemove);
-			});
-
-		new Setting(rowEl)
-			.setName("Values")
-			.setDesc("Use one value per line.")
-			.addTextArea((text) => {
-				text
-					.setPlaceholder("Item=protein bar")
-					.setValue(button.valuesText)
-					.onChange((value) => {
-						button.valuesText = value;
-					});
-				text.inputEl.rows = 4;
-				text.inputEl.classList.add("taplog-settings-textarea");
-			});
-
-		rowEl.createEl("p", {
-			cls: "taplog-settings-help",
-			text: "Example: item=protein bar"
+		const headingEl = rowEl.createEl("div", {
+			cls: "taplog-settings-button-card-heading"
 		});
-		rowEl.createEl("p", {
-			cls: "taplog-settings-help",
-			text: "Use one value per line."
+		headingEl.createEl("div", {
+			cls: "taplog-settings-button-title",
+			text: `Button ${index + 1}`
 		});
+		const removeButton = headingEl.createEl("button", {
+			cls: "taplog-settings-card-button",
+			text: "Remove button"
+		});
+		removeButton.type = "button";
+		removeButton.addEventListener("click", onRemove);
+
+		const nameLabel = rowEl.createEl("label", {
+			cls: "taplog-settings-stacked-field"
+		});
+		nameLabel.createEl("span", {
+			text: "Name"
+		});
+		const nameInput = nameLabel.createEl("input", {
+			cls: "taplog-settings-text-input"
+		});
+		nameInput.type = "text";
+		nameInput.placeholder = "Ate snack";
+		nameInput.value = button.label;
+		nameInput.addEventListener("input", () => {
+			button.label = nameInput.value;
+		});
+
+		rowEl.createEl("div", {
+			cls: "taplog-settings-section-label",
+			text: "Logged values"
+		});
+		const valuesEl = rowEl.createEl("div", {
+			cls: "taplog-settings-value-list"
+		});
+
+		const renderValueRows = () => {
+			valuesEl.empty();
+
+			if (button.values.length === 0) {
+				valuesEl.createEl("p", {
+					cls: "taplog-settings-help",
+					text: "No logged values. Add a value or leave this button empty."
+				});
+			}
+
+			for (let valueIndex = 0; valueIndex < button.values.length; valueIndex++) {
+				const valueRow = button.values[valueIndex];
+				if (!valueRow) {
+					continue;
+				}
+
+				this.renderEditableValueRow(valuesEl, valueRow, () => {
+					button.values = removeEditableValueRow(button, valueIndex).values;
+					renderValueRows();
+				});
+			}
+		};
+
+		renderValueRows();
+
+		const addValueButton = rowEl.createEl("button", {
+			cls: "taplog-settings-card-button",
+			text: "Add logged value"
+		});
+		addValueButton.type = "button";
+		addValueButton.addEventListener("click", () => {
+			button.values = addEditableValueRow(button).values;
+			renderValueRows();
+		});
+	}
+
+	private renderEditableValueRow(
+		containerEl: HTMLElement,
+		valueRow: EditableButtonValueRow,
+		onRemove: () => void
+	) {
+		const rowEl = containerEl.createEl("div", {
+			cls: "taplog-settings-value-row"
+		});
+
+		const fieldLabel = rowEl.createEl("label", {
+			cls: "taplog-settings-value-label"
+		});
+		fieldLabel.createEl("span", {
+			text: "Value"
+		});
+		const fieldInput = fieldLabel.createEl("input", {
+			cls: "taplog-settings-value-input"
+		});
+		fieldInput.type = "text";
+		fieldInput.placeholder = "Item";
+		fieldInput.value = valueRow.field;
+		fieldInput.addEventListener("input", () => {
+			valueRow.field = fieldInput.value;
+		});
+
+		const valueLabel = rowEl.createEl("label", {
+			cls: "taplog-settings-value-label"
+		});
+		valueLabel.createEl("span", {
+			text: "Logged value"
+		});
+		const valueInput = valueLabel.createEl("input", {
+			cls: "taplog-settings-value-input"
+		});
+		valueInput.type = "text";
+		// eslint-disable-next-line obsidianmd/ui/sentence-case -- Required product example value.
+		valueInput.placeholder = "Mosh Bar";
+		valueInput.value = valueRow.value;
+		valueInput.addEventListener("input", () => {
+			valueRow.value = valueInput.value;
+		});
+
+		const removeButton = rowEl.createEl("button", {
+			cls: "taplog-settings-value-remove",
+			text: "Remove value"
+		});
+		removeButton.type = "button";
+		removeButton.addEventListener("click", onRemove);
 	}
 
 	private renderDashboardSection(containerEl: HTMLElement) {

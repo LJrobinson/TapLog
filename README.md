@@ -71,7 +71,7 @@ For normal edits, use TapLog settings:
 6. Select **Save tracker changes**.
 7. Open the tracker in Reading View.
 
-Buttons appear as editable rows. Change the button label, edit its values one per line, select **Add button** to add another row, or select **Remove button** to remove one.
+Buttons appear as compact editable cards. Change **Name**, use **Logged values** rows for the value name and logged value that should be written to the CSV, select **Add logged value** to add another row, select **Add button** to add another button, or select **Remove button** to remove one.
 
 The settings editor writes changes back to the `taplog` frontmatter in the selected Markdown tracker note. Existing CSV logs are not deleted.
 
@@ -113,13 +113,13 @@ The label changes the button text. The `values` decide what gets written to the 
 
 ### Change what a button logs
 
-In settings, edit the button's **Values** box. Use one `key=value` line for each value:
+In settings, edit the button's **Logged values** rows:
 
 ```text
-item=Protein Bar
-quantity=1
-unit=bar
-category=snack
+Value: item        Logged value: Protein Bar
+Value: quantity    Logged value: 1
+Value: unit        Logged value: bar
+Value: category    Logged value: snack
 ```
 
 Advanced users can edit the same values in Markdown:
@@ -366,7 +366,7 @@ Walked
 
 If a button is only a label, TapLog logs `label` and `value: 1`. `timestamp` is always included as the first column.
 
-After a tracker is created, use **Edit existing tracker** for common changes. Existing tracker buttons are edited as rows with a label field, a values box, and add/remove controls. For advanced changes, open the tracker note and edit the `taplog` frontmatter directly.
+After a tracker is created, use **Edit existing tracker** for common changes. Existing tracker buttons are edited as compact cards with Name, Logged values, and add/remove controls. For advanced changes, open the tracker note and edit the `taplog` frontmatter directly.
 
 ## Index and dashboard
 

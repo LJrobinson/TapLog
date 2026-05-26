@@ -90,31 +90,63 @@
 }
 
 .taplog-settings-button-card {
-	padding: 0.75rem;
+	display: grid;
+	gap: 0.6rem;
+	padding: 0.7rem;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	background: var(--background-secondary);
 }
 
-.taplog-settings-button-card .setting-item {
-	flex-direction: column;
-	align-items: stretch;
+.taplog-settings-button-card-heading {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.taplog-settings-button-title,
+.taplog-settings-section-label {
+	font-weight: 600;
+}
+
+.taplog-settings-stacked-field,
+.taplog-settings-value-label {
+	display: grid;
+	gap: 0.2rem;
+	font-size: var(--font-ui-small);
+}
+
+.taplog-settings-stacked-field span,
+.taplog-settings-value-label span {
+	color: var(--text-muted);
+}
+
+.taplog-settings-value-list {
+	display: grid;
 	gap: 0.45rem;
-	padding: 0.45rem 0;
-	border-top: 0;
 }
 
-.taplog-settings-button-card .setting-item-info {
+.taplog-settings-value-row {
+	display: grid;
+	grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.4fr) auto;
+	gap: 0.5rem;
+	align-items: end;
+}
+
+.taplog-settings-text-input,
+.taplog-settings-value-input {
 	width: 100%;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
 }
 
-.taplog-settings-button-card .setting-item-control {
-	flex: 1 1 18rem;
-	justify-content: flex-start;
-	width: 100%;
+.taplog-settings-card-button,
+.taplog-settings-value-remove {
+	white-space: nowrap;
 }
 
-.taplog-settings-button-card input,
 .taplog-settings-textarea {
 	width: 100%;
 	min-width: min(100%, 22rem);
@@ -139,5 +171,20 @@
 	.taplog-button-card {
 		flex-basis: 100%;
 		max-width: none;
+	}
+
+	.taplog-settings-button-card-heading {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.taplog-settings-value-row {
+		grid-template-columns: 1fr;
+		align-items: stretch;
+	}
+
+	.taplog-settings-card-button,
+	.taplog-settings-value-remove {
+		width: 100%;
 	}
 }
