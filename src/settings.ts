@@ -1,4 +1,4 @@
-import { Notice, PluginSettingTab, Setting, TFile, type App, type Plugin } from "obsidian";
+import { Notice, PluginSettingTab, Setting, TFile, type App, type EventRef, type Plugin } from "obsidian";
 import { createDashboardNote } from "./dashboard";
 import {
 	type CustomTrackerDefinition,
@@ -735,12 +735,26 @@ export class TapLogSettingTab extends PluginSettingTab {
 				return;
 			}
 
+			const metadataChanged = waitForFileMetadataChange(this.plugin.app, file);
 			await this.plugin.app.vault.modify(file, updateResult.value);
+			await metadataChanged;
+			this.refreshOpenTrackerPreviews(file);
 			new Notice(`Saved TapLog tracker changes to ${file.path}.`);
 		} catch (error) {
 			console.error("TapLog failed to save tracker changes.", error);
 			new Notice(`TapLog could not save tracker changes: ${getErrorMessage(error)}`);
 		}
+	}
+
+	private refreshOpenTrackerPreviews(file: TFile) {
+		this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+			const view = leaf.view;
+			if (!isPreviewMarkdownViewForFile(view, file)) {
+				return;
+			}
+
+			view.previewMode.rerender(true);
+		});
 	}
 
 	private renderRibbonActionsSection(containerEl: HTMLElement) {
@@ -857,10 +871,61 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isPreviewMarkdownViewForFile(
+	view: unknown,
+	file: TFile
+): view is { file: { path: string }; previewMode: { rerender(force?: boolean): void } } {
+	if (!isRecord(view)) {
+		return false;
+	}
+
+	const viewFile = view["file"];
+	if (!isRecord(viewFile) || viewFile["path"] !== file.path) {
+		return false;
+	}
+
+	const previewMode = view["previewMode"];
+	if (!isRecord(previewMode)) {
+		return false;
+	}
+
+	return typeof previewMode["rerender"] === "function";
+}
+
 function getErrorMessage(error: unknown): string {
 	if (error instanceof Error && error.message.length > 0) {
 		return error.message;
 	}
 
 	return "Check the tracker note and try again.";
+}
+
+function waitForFileMetadataChange(app: App, file: TFile): Promise<void> {
+	return new Promise<void>((resolve) => {
+		let settled = false;
+		let timeoutId: number | undefined;
+		let eventRef: EventRef | undefined;
+
+		const finish = () => {
+			if (settled) {
+				return;
+			}
+
+			settled = true;
+			if (timeoutId !== undefined) {
+				window.clearTimeout(timeoutId);
+			}
+			if (eventRef) {
+				app.metadataCache.offref(eventRef);
+			}
+			resolve();
+		};
+
+		eventRef = app.metadataCache.on("changed", (changedFile) => {
+			if (changedFile.path === file.path) {
+				finish();
+			}
+		});
+		timeoutId = window.setTimeout(finish, 750);
+	});
 }
